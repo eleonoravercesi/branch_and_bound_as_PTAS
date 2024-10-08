@@ -5,7 +5,10 @@ from parse_files  import parse_instance
 from utils import *
 from math import ceil
 import platform
-from algorithms import JS_ILP, JS_LP, JS_LB_BS_idendical
+from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical
+
+# TODO
+# Define, for each node, a profile class containing the values T_1, T_2, ..., T_m and for each machine the length of the jobs that are assigned to it
 
 # Pick a directory
 bench = "instancias1a100"
@@ -16,13 +19,13 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-# If it is on my Mac, instances has just length 3
-if platform.system() == "Darwin":
-    instances = [instances[0]]
+# If it is a local test, only run the first instance
+local = True
+instances = [instances[0]]
 
 
 # Open a file to save infos
-epsilon = 0.1
+epsilon = 0
 f = open("identical_{}_{}.csv".format(bench, epsilon), "w+")
 f.write(
     "instance_name,n_jobs,n_machines,gurobi_best,gurobi_nodes,gurobi_time,lb_linear_relaxation,gurobi_beb_best,gurobi_beb_nodes,gurobi_beb_time,our_LB,our_best,our_nodes,our_time,our_depth\n")
@@ -69,7 +72,7 @@ for instance in instances:
     Our B&B
     '''
     start = time.time()
-    T_LB, X_LB, is_optimal = JS_LB_BS_idendical(P, n_machines=n_machines, is_root=True)
+    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines)
     print("Time for the LB: ", time.time() - start)
     if not is_optimal:
         X_best = round_LP_solution_matching(X_LB, P, n_machines=n_machines)
@@ -128,9 +131,9 @@ for instance in instances:
             i = find_largest_fractional(current_solution, P)
             for j in range(n_machines):
                 new_fixed_vars = fixed_vars + [((i, j), 1)]
-                T_new, X_new = JS_LB_BS_idendical(P, n_machines=n_machines, fixed=new_fixed_vars)
+                T_new, X_new, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines, fixed=new_fixed_vars)
 
-                if T_new < best_objective:
+                if not is_optimal and T_new < best_objective: # Bc if it is optimal, is the best you can do at this node
                     heapq.heappush(pq, (-T_new, new_fixed_vars, X_new))
 
             # Exit control: Pick the smallest LB among the active nodes

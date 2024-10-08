@@ -157,7 +157,7 @@ def list_scheduling_algorithm_identical(P, n_machines = None):
         T[j] += P[i, 0]
     return max(T), X
 
-def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=False, is_root=False):
+def JS_LB_BS_identical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=False):
     '''
 
     :param P:
@@ -190,12 +190,8 @@ def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
     r = T
 
     if 0 <= r - l <= 1:
-        # TODO fix here
-        if is_root: # you can return r
-            return r, X, True # Last boolen value is true meaning that it's optimal! This is important
-        if int(l) == l: # l is an integer
-            return int(l), # TODO
-        return T, X
+        return r, X, True
+
 
     # Select a new candidate
     T_prime = (l + r) // 2  # Initial solution
@@ -213,11 +209,11 @@ def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
         T_prime = (l + r) // 2
     # Return the best feasible solution
     if len(all_feas) == 0:
-        return None, None
+        return None, None, None
     else:
         best_T, best_X = min(all_feas, key = lambda x: x[0])
         # round the solution at the tolerance level
-        return round(best_T, int(-log10(tol))), best_X
+        return round(best_T, int(-log10(tol))), best_X, False
 
 
 def list_scheduling_algorithm_unrelated(P):

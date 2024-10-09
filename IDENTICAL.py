@@ -18,13 +18,13 @@ import time
 # Parse the arguments from the command line
 try:
     test = sys.argv[1]
-    test = bool(test) # 1 = True, 0 = False
+    test = bool(int(test)) # 1 = True, 0 = False
 except:
     test = False
 if not test:
-    dataset = sys.argv[1]
-    epsilon = float(sys.argv[2])
-    timelimit = int(sys.argv[3])
+    dataset = sys.argv[2]
+    epsilon = float(sys.argv[3])
+    timelimit = int(sys.argv[4])
 
 
 if test:

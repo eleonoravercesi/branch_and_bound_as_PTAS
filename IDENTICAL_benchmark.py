@@ -4,7 +4,6 @@ import time
 from parse_files  import parse_instance
 from utils import *
 from math import ceil
-import platform
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical
 
 def BeB_standard(P, epsilon, verbose = True):
@@ -17,7 +16,7 @@ def BeB_standard(P, epsilon, verbose = True):
     '''
     depth = 0
     start = time.time()
-    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines)
+    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines, verbose=verbose)
     if verbose:
         print("Time for the LB: ", time.time() - start)
     if not is_optimal:
@@ -26,8 +25,6 @@ def BeB_standard(P, epsilon, verbose = True):
         for j in range(n_machines):
             T_max_for_each_machine.append(np.dot(P.T, X_best[:, j])[0])
         T_best = max(T_max_for_each_machine)
-        if verbose:
-            print("Starting with a best solution of ", T_best, "and the Gurobi best value is ", T_OPT)
 
         # Priority queue for B&B nodes (max-heap based on lower bound, that's why we use -T_LB)
         pq = []
@@ -37,7 +34,6 @@ def BeB_standard(P, epsilon, verbose = True):
 
         best_solution = X_best
         best_objective = T_best
-        best_lower_bound = T_LB
 
         nodes_explored = 0
 
@@ -69,10 +65,15 @@ def BeB_standard(P, epsilon, verbose = True):
             i = find_largest_fractional(current_solution, P)
             for j in range(n_machines):
                 new_fixed_vars = fixed_vars + [((i, j), 1)]
-                T_new, X_new = JS_LB_BS_identical(P, n_machines=n_machines, fixed=new_fixed_vars)
+                T_new, X_new, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines, fixed=new_fixed_vars)
 
-                if T_new < best_objective:
+                if T_new < best_objective and not is_optimal:
+                    # Because if it is optimal, we have the best we can get at that node
                     heapq.heappush(pq, (-T_new, new_fixed_vars, X_new))
+                if T_new < best_objective:
+                    # Update
+                    best_objective = T_new
+                    best_solution = X_new
 
             # Exit control: Pick the smallest LB among the active nodes
             if pq:
@@ -86,7 +87,7 @@ def BeB_standard(P, epsilon, verbose = True):
         print("\t Best solution reached at the root node")
         best_objective = T_LB
         nodes_explored = 1
-    return best_objective, nodes_explored, depth, time.time() - start
+    return best_objective, best_solution, nodes_explored, depth, time.time() - start
 
 # Pick a directory
 bench = "instancias1a100"
@@ -97,14 +98,15 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-# If it is on my Mac, instances has just length 3
-if platform.system() == "Darwin":
-    instances = [instances[0]]
+test = True
+
+if test:
+    instances = [instances[0], instances[1], instances[2]]
 
 
 # Open a file to save infos
 epsilon = 0.1 # Now, just check it's correct
-f = open("identical_{}_{}.csv".format(bench, epsilon), "w+")
+f = open("./output/identical_{}_{}.csv".format(bench, epsilon), "w+")
 f.write(
     "instance_name,n_jobs,n_machines,gurobi_best,gurobi_nodes,gurobi_time,lb_linear_relaxation,gurobi_beb_best,gurobi_beb_nodes,gurobi_beb_time,our_LB,our_best,our_nodes,our_time,our_depth\n")
 f.close()
@@ -134,6 +136,7 @@ for instance in instances:
     LB
     '''
     T_LB_gurobi, _ = JS_LP(P, n_machines=n_machines)
+    T_LB, _, _ = JS_LB_BS_identical(P, n_machines=n_machines)
 
 
     '''
@@ -152,8 +155,8 @@ for instance in instances:
     '''
     Our B&B
     '''
-    best_objective, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, verbose = False)
-    print("Best solution found qith our method: ", best_objective)
+    best_objective, best_solution, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, verbose = False)
+    print("Best solution found our method: ", best_objective)
     print("\tNodes explored: ", nodes_explored)
     if runtime_total > 10*60 + 2:
         print("\tTime limit exceeded")
@@ -163,7 +166,7 @@ for instance in instances:
     th_bound = ceil((n_machines / epsilon) ** n_machines)
     print("Explored {} nodes out of {}".format(nodes_explored, th_bound))
     # Wrote the results
-    f = open("identical_{}_{}.csv".format(bench, epsilon), "a+")
+    f = open("./output/identical_{}_{}.csv".format(bench, epsilon), "a+")
     #f.write(
     #    "instance_name, n_jobs, n_machines, gurobi_best, gurobi_nodes, gurobi_time, lb_linear_relaxation, gurobi_beb_best, gurobi_beb_nodes, gurobi_beb_time, our_LB, our_best, our_nodes, our_time, our_depth\n")
     f.write("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(

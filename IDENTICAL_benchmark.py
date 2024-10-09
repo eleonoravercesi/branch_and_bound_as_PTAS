@@ -7,8 +7,86 @@ from math import ceil
 import platform
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical
 
-# TODO
-# Define, for each node, a profile class containing the values T_1, T_2, ..., T_m and for each machine the length of the jobs that are assigned to it
+def BeB_standard(P, epsilon, verbose = True):
+    '''
+
+    :param P:
+    :param epsilon:
+    :param verbose:
+    :return:
+    '''
+    depth = 0
+    start = time.time()
+    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines)
+    if verbose:
+        print("Time for the LB: ", time.time() - start)
+    if not is_optimal:
+        X_best = round_LP_solution_matching(X_LB, P, n_machines=n_machines)
+        T_max_for_each_machine = []
+        for j in range(n_machines):
+            T_max_for_each_machine.append(np.dot(P.T, X_best[:, j])[0])
+        T_best = max(T_max_for_each_machine)
+        if verbose:
+            print("Starting with a best solution of ", T_best, "and the Gurobi best value is ", T_OPT)
+
+        # Priority queue for B&B nodes (max-heap based on lower bound, that's why we use -T_LB)
+        pq = []
+
+        # Start with the root node
+        heapq.heappush(pq, (-T_LB, [], X_LB))
+
+        best_solution = X_best
+        best_objective = T_best
+        best_lower_bound = T_LB
+
+        nodes_explored = 0
+
+        start_beb = time.time()
+        while pq and time.time() - start_beb < 10 * 60:  # 10 minutes
+            # Get the node with the lowest bound
+            current_lb, fixed_vars, current_solution = heapq.heappop(pq)
+
+            nodes_explored += 1
+
+            # Change the sign for your convenience
+            current_lb = -current_lb
+
+            # Prune if the current lower bound is worse than the best found so far
+            if current_lb >= best_objective:
+                continue
+
+            # Check if the current solution is feasible and better than the best
+            if is_integer_sol(current_solution):
+                current_objective = current_lb
+                if current_objective < best_objective:
+                    best_solution = current_solution
+                    best_objective = current_objective
+                    print("New best solution found: ", best_objective, "in ", time.time() - start,
+                          "seconds, nodes explored: ", nodes_explored)
+                continue
+
+            # Branch on the variable that has the largest job
+            i = find_largest_fractional(current_solution, P)
+            for j in range(n_machines):
+                new_fixed_vars = fixed_vars + [((i, j), 1)]
+                T_new, X_new = JS_LB_BS_identical(P, n_machines=n_machines, fixed=new_fixed_vars)
+
+                if T_new < best_objective:
+                    heapq.heappush(pq, (-T_new, new_fixed_vars, X_new))
+
+            # Exit control: Pick the smallest LB among the active nodes
+            if pq:
+                best_lb = -pq[0][0]
+
+            if best_objective / best_lb <= 1 + epsilon:
+                depth = len(fixed_vars)
+                break
+
+    else:
+        print("\t Optimality reached at the root node")
+        best_objective = T_LB
+        nodes_explored = 1
+    return best_objective, nodes_explored, depth, time.time() - start
 
 # Pick a directory
 bench = "instancias1a100"
@@ -19,13 +97,13 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-# If it is a local test, only run the first instance
-local = True
-instances = [instances[0]]
+# If it is on my Mac, instances has just length 3
+if platform.system() == "Darwin":
+    instances = [instances[0]]
 
 
 # Open a file to save infos
-epsilon = 0
+epsilon = 0 # Now, just check it's correct
 f = open("identical_{}_{}.csv".format(bench, epsilon), "w+")
 f.write(
     "instance_name,n_jobs,n_machines,gurobi_best,gurobi_nodes,gurobi_time,lb_linear_relaxation,gurobi_beb_best,gurobi_beb_nodes,gurobi_beb_time,our_LB,our_best,our_nodes,our_time,our_depth\n")
@@ -71,90 +149,12 @@ for instance in instances:
     '''
     Our B&B
     '''
-    start = time.time()
-    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines)
-    print("Time for the LB: ", time.time() - start)
-    if not is_optimal:
-        X_best = round_LP_solution_matching(X_LB, P, n_machines=n_machines)
-        T_max_for_each_machine = []
-        for j in range(n_machines):
-            T_max_for_each_machine.append(np.dot(P.T, X_best[:, j])[0])
-        T_best = max(T_max_for_each_machine)
-        print("Starting with a best solution of ", T_best, "and the Gurobi best value is ", T_OPT)
-
-        verbose = True
-
-        # Priority queue for B&B nodes (max-heap based on lower bound, that's why we use -T_LB)
-        pq = []
-
-        # Start with the root node
-        heapq.heappush(pq, (-T_LB, [], X_LB))
-
-        best_solution = X_best
-        best_objective = T_best
-        best_lower_bound = T_LB
-
-        nodes_explored = 0
-
-        start_beb = time.time()
-        while pq and time.time() - start_beb < 10*60:  # 10 minutes
-            # Get the node with the lowest bound
-            current_lb, fixed_vars, current_solution = heapq.heappop(pq)
-
-            # Round the current solution
-            X_rounded = round_LP_solution_matching(current_solution, P, n_machines=n_machines)
-            T_max_for_each_machine = []
-            for j in range(n_machines):
-                T_max_for_each_machine.append(np.dot(P.T, X_best[:, j])[0])
-            T_rounded = max(T_max_for_each_machine)
-
-            nodes_explored += 1
-
-            # Change the sign for your convenience
-            current_lb = -current_lb
-
-            # Prune if the current lower bound is worse than the best found so far
-            if current_lb >= best_objective:
-                continue
-
-            # Check if the current solution is feasible and better than the best
-            if is_integer_sol(current_solution):
-                current_objective = current_lb
-                if current_objective < best_objective:
-                    best_solution = current_solution
-                    best_objective = current_objective
-                    print("New best solution found: ", best_objective, "in ", time.time() - start,
-                          "seconds, nodes explored: ", nodes_explored)
-                continue
-
-            # Branch on the variable that has the largest job
-            i = find_largest_fractional(current_solution, P)
-            for j in range(n_machines):
-                new_fixed_vars = fixed_vars + [((i, j), 1)]
-                T_new, X_new, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines, fixed=new_fixed_vars)
-
-                if not is_optimal and T_new < best_objective: # Bc if it is optimal, is the best you can do at this node
-                    heapq.heappush(pq, (-T_new, new_fixed_vars, X_new))
-
-            # Exit control: Pick the smallest LB among the active nodes
-            if pq:
-                best_lb = -pq[0][0]
-
-            if best_objective / best_lb <= 1 + epsilon:
-                break
-    else:
-        print("\t Optimality reached at the root node")
-        best_objective = T_LB
-        nodes_explored = 1
-        depth = 0
-
+    best_objective, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, verbose = False)
     print("Best solution found: ", best_objective)
     print("Optimal value is ", T_OPT)
     print("Nodes explored: ", nodes_explored)
-    runtime_total = time.time() - start
     if runtime_total > 10*60 + 2:
         print("Time limit exceeded")
-    depth = len(fixed_vars)
     print("Time: ", runtime_total)
 
     # Is the number of nodes explored consistent with the theoretical bound?

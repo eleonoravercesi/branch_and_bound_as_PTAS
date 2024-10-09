@@ -184,21 +184,26 @@ def JS_LB_BS_identical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
     # Define the interval [l, r] where the optimal solution lies
     # Define a clever l
     # Take the sum of the minimum processing time of each job and divide by the number of machines
-    l = sum(min(P[i, :]) for i in range(n_jobs)) / n_machines
+    l = sum(min(P[i, :]) for i in range(n_jobs)) // n_machines # Integer division bc we want them integer
     # r =  you can simply use the list scheduling algorithm:
     T, X = list_scheduling_algorithm_identical(P, n_machines)
     r = T
 
-    if 0 <= r - l <= 1:
+    if r == l:
         return r, X, True
 
 
     # Select a new candidate
+    # If l - r equals 1, this is exactly l
     T_prime = (l + r) // 2  # Initial solution
+    first_iteration = True
 
     # While the interval is not empty
-    while r - l > 1:
+    while r - l >= 1:
         is_feas, X = LB(T_prime, P[:, 0].reshape(-1, 1), n_machines, fixed=fixed)
+        if first_iteration and is_feas:
+            return T_prime, X, True # Return the optimal solution that is actually r with is fesible assignment
+        first_iteration = False # After the first iteration, set this variable to false
         if is_feas: # P must be a column vector otherwise you have some complains
             all_feas.append((T_prime, X))
             r = T_prime

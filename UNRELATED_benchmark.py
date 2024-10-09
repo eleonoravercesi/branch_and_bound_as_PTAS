@@ -17,7 +17,8 @@ instances = os.listdir(directory_name)
 instances.sort()
 
 # If it is on my Mac, instances has just length 3
-if platform.system() == "Darwin":
+test = True
+if test:
     instances = [instances[0]]
 
 

@@ -1,10 +1,12 @@
 import os
 import heapq
 import time
+import numpy as np
+from utils import round_LP_solution_matching, is_integer_sol, find_largest_fractional
 from parse_files  import parse_instance
-from utils import *
-from collections import Counter
-from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical
+from algorithms import JS_ILP, JS_LB_BS_identical, BeB_standard
+from math import ceil
+
 
 # Pick a directory
 bench = "instancias1a100"
@@ -18,12 +20,12 @@ instances.sort()
 test = True
 
 if test:
-    instances = [instances[0], instances[1], instances[2]]
+    instances = [instances[0]]
 
 
 # Open a file to save infos
-epsilon = 0.001 # Now, just check it's correct
-f = open("./output/identical_{}_{}.csv".format(bench, epsilon), "w+")
+epsilon = 0.01 # Now, just check it's correct
+f = open("./output/identical_profiles_{}_{}.csv".format(bench, epsilon), "w+")
 f.write(
     "instance_name,n_jobs,n_machines,gurobi_best,gurobi_nodes,gurobi_time,lb_linear_relaxation,gurobi_beb_best,gurobi_beb_nodes,gurobi_beb_time,our_LB,our_best,our_nodes,our_time,our_depth\n")
 f.close()
@@ -51,12 +53,25 @@ for instance in instances:
     print("-------------")
 
     '''
-    LB
+    Optimal with gap
     '''
-    T_LB_gurobi, _ = JS_LP(P, n_machines=n_machines)
-    T_LB, _, _ = JS_LB_BS_identical(P, n_machines=n_machines)
+    # TODO
+    # start_OPT = time.time()
+    # T_OPT, X_OPT, bb_nodes_exact, is_done = JS_ILP(P, n_machines=n_machines, timelimit=10 * 60)  # 10 minutes
+    # time_OPT = time.time() - start_OPT
+    # print("\tOptimal value is ", T_OPT, "in ", time.time() - start_OPT, "seconds")
+    # if not is_done:
+    #     print("\t\tThe ILP did not finish in time")
+    # ILP_runtime = time.time() - start_OPT
+    # print("-------------")
 
-
+    # '''
+    # LB
+    # '''
+    # T_LB_gurobi, _ = JS_LP(P, n_machines=n_machines)
+    # T_LB, _, _ = JS_LB_BS_identical(P, n_machines=n_machines)
+    #
+    #
     '''
     Gurobi B&B
     '''
@@ -73,10 +88,13 @@ for instance in instances:
     '''
     Our B&B -- Preprocessing
     '''
+    P_large = P.copy()
+    #best_objective, best_solution, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, n_machines, verbose=False)
+    #print("Our B&B, no preprocessing: ", best_objective, "with time: ", runtime_total)
     denominator = sum(P) / n_machines
     P = P / denominator
 
-    value_max = int(max(P) // epsilon)
+    value_max = int(max(P)[0] // epsilon)
 
     P_flattened = []
     for p in P:
@@ -84,21 +102,22 @@ for instance in instances:
             if i * epsilon <= p < (i + 1) * epsilon:
                 P_flattened.append(i)
 
-    print(Counter(P_flattened))
+    P = np.array(P_flattened).reshape(-1, 1)
+    best_objective, best_solution, nodes_explored, depth, runtime_total = BeB_with_profile(P, epsilon, n_machines, verbose=False)
+
+    # Recover the old solution
+    T_list = []
+    for j in range(n_machines):
+        T_list.append(np.dot(P_large.T, best_solution[:, j])[0])
+    best_objective = max(T_list)
+
+    print("Best solution found our method: ", best_objective)
+    print("\tNodes explored: ", nodes_explored)
+    if runtime_total > 10*60 + 2:
+        print("\tTime limit exceeded")
+    print("Time: ", runtime_total)
 
 
-
-
-    # best_objective, best_solution, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, verbose = False)
-    # print("Best solution found our method: ", best_objective)
-    # print("\tNodes explored: ", nodes_explored)
-    # if runtime_total > 10*60 + 2:
-    #     print("\tTime limit exceeded")
-    # print("Time: ", runtime_total)
-    #
-    # # Is the number of nodes explored consistent with the theoretical bound?
-    # th_bound = ceil((n_machines / epsilon) ** n_machines)
-    # print("Explored {} nodes out of {}".format(nodes_explored, th_bound))
     # # Wrote the results
     # f = open("./output/identical_{}_{}.csv".format(bench, epsilon), "a+")
     # #f.write(
@@ -107,5 +126,5 @@ for instance in instances:
     #     instance, n_jobs, n_machines, T_OPT, bb_nodes_exact, ILP_runtime, T_LB_gurobi, T_gurobi_beb, bb_nodes_gurobi_beb, time_gurobi_beb, T_LB,
     #     best_objective, nodes_explored, runtime_total, depth))
     # f.close()
-    #
-    # print("Finished instance ", instance)
+
+    print("Finished instance ", instance)

@@ -157,7 +157,7 @@ def list_scheduling_algorithm_identical(P, n_machines = None):
         T[j] += P[i, 0]
     return max(T), X
 
-def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=False, is_root=False):
+def JS_LB_BS_identical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=False):
     '''
 
     :param P:
@@ -184,25 +184,26 @@ def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
     # Define the interval [l, r] where the optimal solution lies
     # Define a clever l
     # Take the sum of the minimum processing time of each job and divide by the number of machines
-    l = sum(min(P[i, :]) for i in range(n_jobs)) / n_machines
+    l = sum(min(P[i, :]) for i in range(n_jobs)) // n_machines # Integer division bc we want them integer
     # r =  you can simply use the list scheduling algorithm:
     T, X = list_scheduling_algorithm_identical(P, n_machines)
     r = T
 
-    if 0 <= r - l <= 1:
-        # TODO fix here
-        if is_root: # you can return r
-            return r, X, True # Last boolen value is true meaning that it's optimal! This is important
-        if int(l) == l: # l is an integer
-            return int(l), # TODO
-        return T, X
+    if r == l:
+        return r, X, True
+
 
     # Select a new candidate
+    # If l - r equals 1, this is exactly l
     T_prime = (l + r) // 2  # Initial solution
+    first_iteration = True
 
     # While the interval is not empty
-    while r - l > 1:
+    while r - l >= 1:
         is_feas, X = LB(T_prime, P[:, 0].reshape(-1, 1), n_machines, fixed=fixed)
+        if first_iteration and is_feas:
+            return T_prime, X, True # Return the optimal solution that is actually r with is fesible assignment
+        first_iteration = False # After the first iteration, set this variable to false
         if is_feas: # P must be a column vector otherwise you have some complains
             all_feas.append((T_prime, X))
             r = T_prime
@@ -213,11 +214,11 @@ def JS_LB_BS_idendical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
         T_prime = (l + r) // 2
     # Return the best feasible solution
     if len(all_feas) == 0:
-        return None, None
+        return None, None, None
     else:
         best_T, best_X = min(all_feas, key = lambda x: x[0])
         # round the solution at the tolerance level
-        return round(best_T, int(-log10(tol))), best_X
+        return round(best_T, int(-log10(tol))), best_X, False
 
 
 def list_scheduling_algorithm_unrelated(P):

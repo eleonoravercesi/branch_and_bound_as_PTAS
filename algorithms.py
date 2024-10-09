@@ -201,7 +201,7 @@ def JS_LB_BS_identical(P,  n_machines = None, tol = 1e-5, fixed = [], verbose=Fa
     # While the interval is not empty
     while r - l >= 1:
         is_feas, X = LB(T_prime, P[:, 0].reshape(-1, 1), n_machines, fixed=fixed)
-        if first_iteration and is_feas:
+        if first_iteration and is_feas and r - l == 1:
             return T_prime, X, True # Return the optimal solution that is actually r with is fesible assignment
         first_iteration = False # After the first iteration, set this variable to false
         if is_feas: # P must be a column vector otherwise you have some complains

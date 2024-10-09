@@ -83,7 +83,7 @@ def BeB_standard(P, epsilon, verbose = True):
                 break
 
     else:
-        print("\t Optimality reached at the root node")
+        print("\t Best solution reached at the root node")
         best_objective = T_LB
         nodes_explored = 1
     return best_objective, nodes_explored, depth, time.time() - start
@@ -103,7 +103,7 @@ if platform.system() == "Darwin":
 
 
 # Open a file to save infos
-epsilon = 0 # Now, just check it's correct
+epsilon = 0.1 # Now, just check it's correct
 f = open("identical_{}_{}.csv".format(bench, epsilon), "w+")
 f.write(
     "instance_name,n_jobs,n_machines,gurobi_best,gurobi_nodes,gurobi_time,lb_linear_relaxation,gurobi_beb_best,gurobi_beb_nodes,gurobi_beb_time,our_LB,our_best,our_nodes,our_time,our_depth\n")
@@ -128,6 +128,7 @@ for instance in instances:
     if not is_done:
         print("\t\tThe ILP did not finish in time")
     ILP_runtime = time.time() - start_OPT
+    print("-------------")
 
     '''
     LB
@@ -139,22 +140,23 @@ for instance in instances:
     Gurobi B&B
     '''
     start_gurobi_beb = time.time()
-    T_gurobi_beb, _, bb_nodes_gurobi_beb, is_done_gurobi_beb = JS_ILP(P, n_machines=n_machines, verbose = False, presolve = False, cuts = False, gap = epsilon, timelimit = 60*10)  # 10 minutes
+    T_gurobi_beb, _, bb_nodes_gurobi_beb, is_done_gurobi_beb = JS_ILP(P, n_machines=n_machines, verbose = True, presolve = False, cuts = False, gap = epsilon, timelimit = 60*10)  # 10 minutes
     time_gurobi_beb = time.time() - start_OPT
     print("Best value with naive B&B for Gurobi", T_gurobi_beb, "in ", time_gurobi_beb, "seconds")
     if not is_done:
         print("\tGurobi B&B did not finish in time")
+
+    print("-------------")
 
 
     '''
     Our B&B
     '''
     best_objective, nodes_explored, depth, runtime_total = BeB_standard(P, epsilon, verbose = False)
-    print("Best solution found: ", best_objective)
-    print("Optimal value is ", T_OPT)
-    print("Nodes explored: ", nodes_explored)
+    print("Best solution found qith our method: ", best_objective)
+    print("\tNodes explored: ", nodes_explored)
     if runtime_total > 10*60 + 2:
-        print("Time limit exceeded")
+        print("\tTime limit exceeded")
     print("Time: ", runtime_total)
 
     # Is the number of nodes explored consistent with the theoretical bound?

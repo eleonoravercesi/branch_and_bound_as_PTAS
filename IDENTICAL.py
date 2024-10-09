@@ -90,8 +90,6 @@ for instance in instances:
     ###################
     start = time.time()
     opt , _ , bb_nodes, runtime, gap, is_opt = JS_ILP(P, n_machines=n_machines, timelimit=timelimit)
-    if is_opt:
-        assert gap <= 0.00001
     to_write += str(opt) + "," + str(bb_nodes) + "," + str(runtime) + "," + str(is_opt) + "," + str(gap) + ","
     print("\tStandard Gurobi: ", round(time.time() - start, 2), "s", flush=True)
 

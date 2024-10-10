@@ -342,9 +342,9 @@ def BeB_with_profile(P, epsilon, n_machines, timelimit = 60*10, verbose = True):
     P_diffs_values = sorted(list(set(P.flatten())))
     different_values = len(set(P.flatten()))
     depth = 0
-    T_LB, X_LB, is_optimal = JS_LB_BS_identical(P, n_machines=n_machines, verbose=False)
+    T_LB, X_LB, optimal = JS_LB_BS_identical(P, n_machines=n_machines, verbose=False)
     count_discarded = 0
-    if not is_optimal:
+    if not optimal:
         X_best = round_LP_solution_matching(X_LB, P, n_machines=n_machines)
         T_max_for_each_machine = []
         for j in range(n_machines):

@@ -136,7 +136,7 @@ for instance in instances:
                 P_flattened.append(i)
 
     P = np.array(P_flattened).reshape(-1, 1)
-    best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit)
+    best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit, verbose=False)
 
     # Step 1: recover the original solution
     T_list = []

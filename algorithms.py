@@ -442,3 +442,5 @@ def BeB_with_profile(P, epsilon, n_machines, timelimit = 60*10, verbose = True):
         optimal = True
     return best_objective, X_best_lb, best_solution, nodes_explored, depth, time.time() - start, optimal
 
+
+

@@ -14,26 +14,27 @@ from parse_files import parse_instance
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical, BeB_standard, BeB_with_profile
 import gurobipy as gp
 import time
+import numpy as np
 from math import floor
 
 
 # Parse the arguments from the command line
-try:
-    test = sys.argv[1]
-    test = bool(int(test)) # 1 = True, 0 = False
-except:
-    test = False
-if not test:
-    print("Running in test mode")
-    if len(sys.argv) > 1:
-        dataset = sys.argv[2]
-        epsilon = float(sys.argv[3])
-        timelimit = int(sys.argv[4])
+# try:
+#     test = sys.argv[1]
+#     test = bool(int(test)) # 1 = True, 0 = False
+# except:
+#     test = False
+# if not test:
+#     print("Running in test mode")
+#     if len(sys.argv) > 1:
+#         dataset = sys.argv[2]
+#         epsilon = float(sys.argv[3])
+#         timelimit = int(sys.argv[4])
 
-
+test = True
 if test:
     print("Running in test mode")
-    epsilon = 0.1
+    epsilon = 0.01
     dataset = "instancias1a100"
     timelimit = 5
 
@@ -129,70 +130,88 @@ for instance in instances:
     # Prerocessing first
     P_red = P.copy()
     denominator = sum(P_red) / n_machines
-    P_red = P_red / denominator
+    P_red = [x for x in P_red / denominator]
+    P_red = list(sorted(P_red))
 
     # If it exist a job that is smaller than epsilon / n_machines
     if sum(P_red[j] < (epsilon / n_machines) for j in range(n_jobs)) > 1:
-        # Create a model. The variables are x_{ij}: group
-        r = gp.Model("grouping")
-        n_new_vars_max = int(n_machines ** 2 // epsilon)
-        X = r.addVars(n_jobs, n_new_vars_max, vtype=gp.GRB.BINARY, name="X")
-        # Add the constraints
-        for j in range(n_jobs):
-            r.addConstr(gp.quicksum(X[i, j] * P_red[i] for i in range(n_jobs)) >= (epsilon / n_machines))
-        r.optimize()
+        # Create a list p_red_shor, with all the jobs having a time of at most epsilon / n_machines
+        P_red_short = [p for p in P_red if p < epsilon / n_machines]
+        n_to_be_merged = len(P_red_short)
 
-        X_rec = dict(zip(range(n_new_vars_max), [] * n_new_vars_max))
-        for j in range(n_new_vars_max):
-            for i in range():
-                if X[i, j].x > 0:
-                    X_rec[j].append(i)
+        X_rec = {}
 
-        del X # Free the memory
+        cont = 0
+        start = 0
+        end = 0
+        merge = True
+        while merge:
+            while sum(P_red_short[start:end + 1]) < epsilon / n_machines:
+                end += 1
+            X_rec[cont] = list(range(start, end + 1))
+            start = end + 1
+            cont += 1
+            end = start
+            if end >= n_to_be_merged:
+                merge = False
 
-        # Now we have the grouping! Get it
+        # Put the jobs all together again!
         P_new = []
-        for j in range(n_new_vars_max):
-            p_new = sum(P[i] * X[i] for i in range(n_jobs) if )
-            if p_new > 0:
-                P_new.append(p_new)
+        for k, v in X_rec.items():
+            P_new.append(sum(P_red_short[i] for i in v))
+        P_new = P_new + P_red[n_to_be_merged:]
 
-        print("Finally, we grouped {} jobs".format(len(P_new)))
+        print("\tNumber of new jobs: ", len(P_new))
+
+        k = len(P_new) # New number of jobs
 
 
-    # TODO Round down by epsilon / k where k is the exact number of jobs
-    value_max = int(max(P) // (epsilon/k))
+        value_max = int(max(P_new) // (epsilon/k))
 
-    # P_flattened = []
-    # for p in P:
-    #     for i in range(0, value_max + 1):
-    #         if i * (epsilon/k) <= p < (i + 1) * (epsilon/k):
-    #             P_flattened.append(i)
-    #
-    # P = np.array(P_flattened).reshape(-1, 1)
-    # best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit, verbose=False)
-    #
-    # # Step 1: recover the original solution
-    # T_list = []
-    # for j in range(n_machines):
-    #     T_list.append(np.dot(P_large.T, best_solution[:, j])[0])
-    # best_objective = max(T_list)
-    #
-    # # Step 2: recover the original lb
-    # T_list = []
-    # for j in range(n_machines):
-    #     T_list.append(np.dot(P_large.T, X_best_lb[:, j])[0])
-    # best_lb = max(T_list)
-    #
-    # # Step 3: compute the gap
-    # gap = (best_objective - best_lb) / best_objective
-    #
-    # to_write += str(best_objective) + "," + str(nodes_explored) + "," + str(runtime) + "," + str(depth) + "," + str(gap) + "\n"
-    #
-    # print("\tOur B&B with profiling: ", round(time.time() - start, 2), "s", flush=True)
-    #
-    # f = open("./output/identical_profiles_{}_{}.csv".format(dataset, epsilon), "a")
-    # f.write(to_write)
-    # f.close()
-    #
-    # print("Finished instance\n*************************************", instance, " in ", round(time.time() - start, 2), "s", flush=True)
+        P_flattened = []
+        for p in P_new:
+            for i in range(0, value_max + 1):
+                if i * (epsilon/k) <= p < (i + 1) * (epsilon/k):
+                    P_flattened.append(i)
+
+        P = np.array(P_flattened).reshape(-1, 1)
+        best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit, verbose=False)
+
+        # Step 1: recover the original solution for the squished jobs
+        T = np.zeros(n_machines)
+        for i in range(len(X_rec)):
+            p_large = [P[j] for j in X_rec[i]]
+            for j in range(n_machines):
+                if best_solution[(i, j)] > 0.5:
+                    T[j] += sum(p_large)
+
+        for i in range(len(X_rec), k):
+            for j in range(n_machines):
+                if best_solution[(i, j)] > 0.5:
+                    T[j] += P[i]
+
+        best_objective = max(T)
+
+        # Step 1: recover the original solution for the squished jobs
+        T = np.zeros(n_machines)
+        for i in range(len(X_rec)):
+            p_large = [P[j] for j in X_rec[i]]
+            for j in range(n_machines):
+                T[j] += sum(p_large) * X_best_lb[(i, j)]
+
+        for i in range(len(X_rec), k):
+            for j in range(n_machines):
+                T[j] += P[i] * X_best_lb[(i, j)]
+
+        best_lb = max(T)
+
+        # Step 3: compute the gap
+        gap = (best_objective - best_lb) / best_objective
+
+        to_write += str(best_objective) + "," + str(nodes_explored) + "," + str(runtime) + "," + str(depth) + "," + str(gap) + "\n"
+
+        print("\tOur B&B with profiling: ", round(time.time() - start, 2), "s", flush=True)
+
+        f = open("./output/identical_profiles_{}_{}.csv".format(dataset, epsilon), "a")
+        f.write(to_write)
+        f.close()

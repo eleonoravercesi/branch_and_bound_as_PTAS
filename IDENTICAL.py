@@ -136,82 +136,89 @@ for instance in instances:
     # If it exist a job that is smaller than epsilon / n_machines
     if sum(P_red[j] < (epsilon / n_machines) for j in range(n_jobs)) > 1:
         # Create a list p_red_shor, with all the jobs having a time of at most epsilon / n_machines
-        P_red_short = [p for p in P_red if p < epsilon / n_machines]
+        P_red_short = [p[0] for p in P_red if p < epsilon / n_machines]
         n_to_be_merged = len(P_red_short)
 
-        X_rec = {}
+        P_red_short = sorted(P_red_short)
 
-        cont = 0
-        start = 0
-        end = 0
-        merge = True
-        while merge:
-            while sum(P_red_short[start:end + 1]) < epsilon / n_machines:
-                end += 1
-            X_rec[cont] = list(range(start, end + 1))
-            start = end + 1
-            cont += 1
-            end = start
-            if end >= n_to_be_merged:
-                merge = False
+        # Initialize groups list
+        groups = []
+        current_group = []
+        counter = 0
+        # Iterate through the sorted list
+        while counter < len(P_red_short):
+            value = P_red_short[counter]
+            # Check if adding the current value to the current group exceeds the threshold k
+            if sum(P_red_short[i] for i in current_group) + value > epsilon / n_machines:
+                # If the current group is already greater than k, start a new group
+                if sum(current_group) >= epsilon / n_machines:
+                    groups.append(current_group)
+                    current_group = [counter]
+                    counter = counter + 1
+                else:
+                    # Try adding the current value to the existing group
+                    current_group.append(counter)
+                    counter = counter + 1
+            else:
+                # Add to the current group if it doesn't exceed the threshold
+                current_group.append(counter)
+                counter = counter + 1
 
-        # Put the jobs all together again!
-        P_new = []
-        for k, v in X_rec.items():
-            P_new.append(sum(P_red_short[i] for i in v))
-        P_new = P_new + P_red[n_to_be_merged:]
+        # Add the last group
+        if current_group:
+            groups.append(current_group)
 
-        print("\tNumber of new jobs: ", len(P_new))
-
-        k = len(P_new) # New number of jobs
-
-
-        value_max = int(max(P_new) // (epsilon/k))
-
-        P_flattened = []
-        for p in P_new:
-            for i in range(0, value_max + 1):
-                if i * (epsilon/k) <= p < (i + 1) * (epsilon/k):
-                    P_flattened.append(i)
-
-        P = np.array(P_flattened).reshape(-1, 1)
-        best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit, verbose=False)
-
-        # Step 1: recover the original solution for the squished jobs
-        T = np.zeros(n_machines)
-        for i in range(len(X_rec)):
-            p_large = [P[j] for j in X_rec[i]]
-            for j in range(n_machines):
-                if best_solution[(i, j)] > 0.5:
-                    T[j] += sum(p_large)
-
-        for i in range(len(X_rec), k):
-            for j in range(n_machines):
-                if best_solution[(i, j)] > 0.5:
-                    T[j] += P[i]
-
-        best_objective = max(T)
-
-        # Step 1: recover the original solution for the squished jobs
-        T = np.zeros(n_machines)
-        for i in range(len(X_rec)):
-            p_large = [P[j] for j in X_rec[i]]
-            for j in range(n_machines):
-                T[j] += sum(p_large) * X_best_lb[(i, j)]
-
-        for i in range(len(X_rec), k):
-            for j in range(n_machines):
-                T[j] += P[i] * X_best_lb[(i, j)]
-
-        best_lb = max(T)
-
-        # Step 3: compute the gap
-        gap = (best_objective - best_lb) / best_objective
-
-        to_write += str(best_objective) + "," + str(nodes_explored) + "," + str(runtime) + "," + str(depth) + "," + str(gap) + "\n"
-
-        print("\tOur B&B with profiling: ", round(time.time() - start, 2), "s", flush=True)
-
-        f = open("./output/identical_profiles_{}_{}.csv".format(dataset, epsilon), "a")
-        f.write(to_write)
-        f.close()
+        # print("\tNumber of new jobs: ", len(P_new))
+        #
+        # k = len(P_new) # New number of jobs
+        #
+        #
+        # value_max = int(max(P_new) // (epsilon/k))
+        #
+        # P_flattened = []
+        # for p in P_new:
+        #     for i in range(0, value_max + 1):
+        #         if i * (epsilon/k) <= p < (i + 1) * (epsilon/k):
+        #             P_flattened.append(i)
+        #
+        # P = np.array(P_flattened).reshape(-1, 1)
+        # best_objective, X_best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_with_profile(P, epsilon, n_machines, timelimit=timelimit, verbose=False)
+        #
+        # # Step 1: recover the original solution for the squished jobs
+        # T = np.zeros(n_machines)
+        # for i in range(len(X_rec)):
+        #     p_large = [P[j] for j in X_rec[i]]
+        #     for j in range(n_machines):
+        #         if best_solution[(i, j)] > 0.5:
+        #             T[j] += sum(p_large)
+        #
+        # for i in range(len(X_rec), k):
+        #     for j in range(n_machines):
+        #         if best_solution[(i, j)] > 0.5:
+        #             T[j] += P[i]
+        #
+        # best_objective = max(T)
+        #
+        # # Step 1: recover the original solution for the squished jobs
+        # T = np.zeros(n_machines)
+        # for i in range(len(X_rec)):
+        #     p_large = [P[j] for j in X_rec[i]]
+        #     for j in range(n_machines):
+        #         T[j] += sum(p_large) * X_best_lb[(i, j)]
+        #
+        # for i in range(len(X_rec), k):
+        #     for j in range(n_machines):
+        #         T[j] += P[i] * X_best_lb[(i, j)]
+        #
+        # best_lb = max(T)
+        #
+        # # Step 3: compute the gap
+        # gap = (best_objective - best_lb) / best_objective
+        #
+        # to_write += str(best_objective) + "," + str(nodes_explored) + "," + str(runtime) + "," + str(depth) + "," + str(gap) + "\n"
+        #
+        # print("\tOur B&B with profiling: ", round(time.time() - start, 2), "s", flush=True)
+        #
+        # f = open("./output/identical_profiles_{}_{}.csv".format(dataset, epsilon), "a")
+        # f.write(to_write)
+        # f.close()

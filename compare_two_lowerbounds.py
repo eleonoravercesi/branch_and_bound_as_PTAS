@@ -2,9 +2,10 @@ import time
 import heapq
 import os
 import numpy as np
-from algorithms import BeB_standard
+from algorithms import BeB_standard, JS_ILP
 from utils import round_LP_solution_matching
 from parse_files import parse_instance
+import gurobipy as gp
 
 def list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines = None, fixed = []):
     '''
@@ -36,7 +37,7 @@ def list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines = None, fi
             T[j] += P[i, 0]
     return max(T), X
 
-def new_LB(P, n_machines, fixed = []):
+def new_LB_old(P, n_machines, fixed = []):
     '''
     This lowerbound is pretty trivial
     :param P:
@@ -71,20 +72,76 @@ def new_LB(P, n_machines, fixed = []):
         all_jobs = [i for i in range(len(P))]
         i = all_jobs.pop(0)
         while len(all_jobs) > 0:
-            # TODO must me finished and fixed 
             if i not in job_assigned:
                 # Find k such that T[j] + k*P[i] <= LB
                 k = (LB - T[j]) / P[i]
-                if k > 0:
+                if k > 0 and T[j] + k * P[i] <= LB:
                     # assign it
                     X[i, j] = k
                     T[j] += k * P[i]
                     i = all_jobs.pop(0)
                 else:
                     j += 1
+                    # Assign job i to machine j
+                    X[i, j] = 1
         assert max(T) <= LB
         X = round_LP_solution_matching(X, P, n_machines=n_machines)
         return LB, X, var_to_branch_on
+
+def new_LB(P, n_machines, fixed = []):
+    # Compute overheads
+    T = np.zeros(n_machines)
+    X = np.zeros((len(P), n_machines))
+    for (i, j), _ in fixed:
+        T[j] += P[i]
+        X[i, j] = 1
+
+    # Take the maximum
+    T_max = np.max(T)
+
+    # Compute a stupid lowerbound
+    LB = sum(P) / n_machines
+
+    # Get the jobs already assigned
+    job_assigned = [i for (i, j) in fixed]
+    var_to_branch_on = np.argmax(P[[i for i in range(len(P)) if i not in job_assigned]])
+
+    if T_max > LB:
+        _, X = list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines=n_machines, fixed=fixed)
+        # Get the index of the max among the unfixed jobs
+        return T_max, X, var_to_branch_on
+    else:
+        # Define an LP for job scheduling
+        m = gp.Model("job_scheduling")
+        m.Params.OutputFlag = 0
+        m.Params.LogToConsole = 0
+
+        # Define a starting budget for all the machined
+        b = np.zeros(n_machines)
+        fixed_jobs = []
+        for (i, j), _ in fixed:
+            b[j] += P[i]
+            fixed_jobs.append(i)
+        jobs_to_be_assigned = [i for i in range(len(P)) if i not in fixed_jobs]
+        X_var = m.addVars(len(jobs_to_be_assigned), n_machines, vtype=gp.GRB.CONTINUOUS, name="X")
+        # Each job must be assigned to exactly one machine
+        m.addConstrs((gp.quicksum(X_var[i, j] for j in range(n_machines)) == 1 for i in range(len(jobs_to_be_assigned))))
+        # On each machine, the total completion time must be less than the lower bound
+        m.addConstrs((gp.quicksum(X_var[i, j] * P[jobs_to_be_assigned[i]] for i in range(len(jobs_to_be_assigned))) <= LB - b[j] for j in range(n_machines)))
+
+        # Recover the solution
+        m.optimize()
+
+        for i in range(len(jobs_to_be_assigned)):
+            for j in range(n_machines):
+                X[jobs_to_be_assigned[i], j] = X_var[i, j].x
+
+        # Make this fractional solution integer
+        X_int = round_LP_solution_matching(X, P, n_machines)
+
+        return LB, X_int, var_to_branch_on
+
+
 
 def BeB_new_LB(P, epsilon, n_machines, timelimit = 10*60, verbose = False):
     '''
@@ -155,7 +212,6 @@ def BeB_new_LB(P, epsilon, n_machines, timelimit = 10*60, verbose = False):
 
 test = True
 if test:
-    print("Running in test mode")
     epsilon = 0.01
     dataset = "instancias1a100"
     timelimit = 5
@@ -167,7 +223,18 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-instances = [instances[0]]
+# Pick a random integer
+l = np.random.randint(0, len(instances))
+
+instances = [instances[l]]
+
+instances = ['231.txt']
+
+print("Instance: ", instances[0], flush=True)
+
+timelimit = 20 # seconds
+
+print("Timelimit: ", timelimit, "seconds", flush=True)
 
 for instance in instances:
     P = parse_instance(instance, directory_name)
@@ -175,17 +242,24 @@ for instance in instances:
     # Make the P a column vector -- we are in the identical case
     P = P[:, 0].reshape(-1, 1)
 
-    best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_standard(P, epsilon,
-                                                                                                   n_machines,
-                                                                                               timelimit=timelimit)
-    gap = (best_objective - best_lb) / best_objective
-    print("Old B&B: ", round(runtime, 2), "s", flush=True)
-    print("\tBest objective: ", best_objective, flush=True)
+    # best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_standard(P, epsilon,
+    #                                                                                                n_machines,
+    #                                                                                            timelimit=timelimit)
+    # gap = (best_objective - best_lb) / best_objective
+    # print("Old B&B: ", round(runtime, 2), "s", flush=True)
+    # print("\tBest objective: ", best_objective, flush=True)
+    # print("\t Number of nodes explored: ", nodes_explored, flush=True)
 
 
     best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_new_LB(P, epsilon,
                                                                                                    n_machines,
-                                                                                                   timelimit=timelimit)
+                                                                                                   timelimit=timelimit, verbose=True)
     gap = (best_objective - best_lb) / best_objective
     print("New B&B: ", round(runtime, 2), "s", flush=True)
     print("\tBest objective: ", best_objective, flush=True)
+    print("\t Number of nodes explored: ", nodes_explored, flush=True)
+
+    # Optimal solution
+    opt, X, bb_nodes, runtime, _, _ = JS_ILP(P, n_machines=n_machines, timelimit=timelimit)
+    print("Optimal: ", opt, flush=True)
+    print("\tTime: ", runtime)

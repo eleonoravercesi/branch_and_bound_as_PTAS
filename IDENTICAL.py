@@ -135,8 +135,9 @@ for instance in instances:
 
     # If it exist a job that is smaller than epsilon / n_machines
     if sum(P_red[j] < (epsilon / n_machines) for j in range(n_jobs)) > 1:
+        # TODO
         # Create a list p_red_shor, with all the jobs having a time of at most epsilon / n_machines
-        P_red_short = [p[0] for p in P_red if p < epsilon / n_machines]
+        P_red_short = [p for p in P_red if p < epsilon / n_machines]
         n_to_be_merged = len(P_red_short)
 
         P_red_short = sorted(P_red_short)

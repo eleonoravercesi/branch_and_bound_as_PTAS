@@ -6,6 +6,7 @@ from algorithms import JS_ILP
 from utils import round_LP_solution_matching
 from parse_files import parse_instance
 import gurobipy as gp
+from algorithms import BeB_standard
 
 def list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines = None, fixed = []):
     '''
@@ -191,11 +192,13 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-instances = ['1013.txt']
-
+#instances = ['1013.txt']
+# Sample a random integer
+random_instance = np.random.randint(0, len(instances))
+instances = [instances[random_instance]]
 print("Instance: ", instances[0], flush=True)
 
-timelimit = 100 # seconds
+timelimit = 20 # seconds
 
 print("Timelimit: ", timelimit, "seconds", flush=True)
 
@@ -205,15 +208,26 @@ for instance in instances:
     # Make the P a column vector -- we are in the identical case
     P = P[:, 0].reshape(-1, 1)
 
-    beb = BranchAndBound(P, n_machines, epsilon= epsilon, timelimit = timelimit)
-    X, best, LB, node_count, runtime = beb.solve()
-    print("Best with our B&B: ", best, flush=True)
+    start = time.time()
+    best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_standard(P, epsilon,
+                                                                                                   n_machines,
+                                                                                                   timelimit=timelimit)
+    print("Our with our B&B, old strategy: ", best_objective, flush=True)
     print("\tTime: ", runtime)
+    print("\tNodes: ", nodes_explored)
+
+    beb = BranchAndBound(P, n_machines, epsilon= epsilon, timelimit = timelimit, verbose=False)
+    X, best, LB, node_count, runtime = beb.solve()
+    print("Best with our B&B, new strategy: ", best, flush=True)
+    print("\tTime: ", runtime)
+    print("\tNodes: ", bb_nodes)
 
     # Optimal solution
     opt, X, bb_nodes, runtime, _, _ = JS_ILP(P, n_machines=n_machines, timelimit=timelimit)
     print("Optimal: ", opt, flush=True)
     print("\tTime: ", runtime)
+    print("\tNodes: ", bb_nodes)
 
     if runtime < timelimit:
-        print("Ratio: ", best / opt, "<", 1 + epsilon,  flush=True)
+        print("The optimal solution was found by Gurobi", flush=True)
+        print("Ratio: ", best / opt, "<", 1 + epsilon, "?", best / opt < (1 + epsilon), flush=True)

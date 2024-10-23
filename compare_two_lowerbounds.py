@@ -2,7 +2,7 @@ import time
 import heapq
 import os
 import numpy as np
-from algorithms import BeB_standard, JS_ILP
+from algorithms import JS_ILP
 from utils import round_LP_solution_matching
 from parse_files import parse_instance
 import gurobipy as gp
@@ -24,7 +24,7 @@ def list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines = None, fi
 
     jobs_assigned = []
     if len(fixed) > 0:
-        for (i, j), _ in fixed:
+        for (i, j) in fixed:
             T[j] += P[i, 0]
             X[i, j] = 1
             jobs_assigned.append(i)
@@ -37,63 +37,12 @@ def list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines = None, fi
             T[j] += P[i, 0]
     return max(T), X
 
-def new_LB_old(P, n_machines, fixed = []):
-    '''
-    This lowerbound is pretty trivial
-    :param P:
-    :return:
-    '''
-    # Compute overheads
-    T = np.zeros(n_machines)
-    X = np.zeros((len(P), n_machines))
-    for (i, j) in fixed:
-        T[j] += P[i]
-        X[i, j] = 1
-
-    # Take the maximum
-    T_max = np.max(T)
-
-    # Compute a stupid lowerbound
-    LB = sum(P) / n_machines
-
-    # Get the jobs already assigned
-    job_assigned = [i for (i, j) in fixed]
-    var_to_branch_on = np.argmax(P[[i for i in range(len(P)) if i not in job_assigned]])
-
-    if T_max > LB:
-        _, X = list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines=n_machines, fixed=fixed)
-        # Get the index of the max among the unfixed jobs
-        return T_max, X, var_to_branch_on
-    else:
-        X = np.zeros((len(P), n_machines))
-        for (i, j), _ in fixed:
-            X[i, j] = 1
-        j = 0
-        all_jobs = [i for i in range(len(P))]
-        i = all_jobs.pop(0)
-        while len(all_jobs) > 0:
-            if i not in job_assigned:
-                # Find k such that T[j] + k*P[i] <= LB
-                k = (LB - T[j]) / P[i]
-                if k > 0 and T[j] + k * P[i] <= LB:
-                    # assign it
-                    X[i, j] = k
-                    T[j] += k * P[i]
-                    i = all_jobs.pop(0)
-                else:
-                    j += 1
-                    # Assign job i to machine j
-                    X[i, j] = 1
-        assert max(T) <= LB
-        X = round_LP_solution_matching(X, P, n_machines=n_machines)
-        return LB, X, var_to_branch_on
-
 def new_LB(P, n_machines, fixed = []):
     # Compute overheads
     T = np.zeros(n_machines)
     X = np.zeros((len(P), n_machines))
-    for (i, j), _ in fixed:
-        T[j] += P[i]
+    for (i, j) in fixed:
+        T[j] += P[i][0].astype(float)
         X[i, j] = 1
 
     # Take the maximum
@@ -104,12 +53,20 @@ def new_LB(P, n_machines, fixed = []):
 
     # Get the jobs already assigned
     job_assigned = [i for (i, j) in fixed]
-    var_to_branch_on = np.argmax(P[[i for i in range(len(P)) if i not in job_assigned]])
+
+    # Get the maximum and the index of the maximum -- can be improved
+    var_to_branch_on = None
+    P_current = 0
+    for i in range(n_jobs):
+        if i not in job_assigned and P[i] >= P_current:
+            var_to_branch_on = i
+            P_current = P[i]
+
 
     if T_max > LB:
-        _, X = list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines=n_machines, fixed=fixed)
+        T_int, X = list_scheduling_algorithm_identical_with_fixed_jobs(P, n_machines=n_machines, fixed=fixed)
         # Get the index of the max among the unfixed jobs
-        return T_max, X, var_to_branch_on
+        return T_max, X, T_int, var_to_branch_on
     else:
         # Define an LP for job scheduling
         m = gp.Model("job_scheduling")
@@ -119,7 +76,7 @@ def new_LB(P, n_machines, fixed = []):
         # Define a starting budget for all the machined
         b = np.zeros(n_machines)
         fixed_jobs = []
-        for (i, j), _ in fixed:
+        for (i, j) in fixed:
             b[j] += P[i]
             fixed_jobs.append(i)
         jobs_to_be_assigned = [i for i in range(len(P)) if i not in fixed_jobs]
@@ -139,82 +96,93 @@ def new_LB(P, n_machines, fixed = []):
         # Make this fractional solution integer
         X_int = round_LP_solution_matching(X, P, n_machines)
 
-        return LB, X_int, var_to_branch_on
-
-
-
-def BeB_new_LB(P, epsilon, n_machines, timelimit = 10*60, verbose = False):
-    '''
-
-    :param P:
-    :param epsilon:
-    :param verbose:
-    :return:
-    '''
-    optimal = False
-    depth = 0
-    start = time.time()
-    T_LB, X_best, var_to_branch_on = new_LB(P, n_machines)
-    T_max_for_each_machine = np.zeros(n_machines)
-    for i in range(len(P)):
-        for j in range(n_machines):
-            T_max_for_each_machine[j] += P[i] * X_best[i, j]
-    T_best = max(T_max_for_each_machine)
-
-    # Priority queue for B&B nodes (max-heap based on lower bound, that's why we use -T_LB)
-    pq = []
-
-    # Start with the root node
-    heapq.heappush(pq, (-T_LB, [], var_to_branch_on))
-
-    best_solution = X_best
-    best_objective = T_best
-    best_lb = T_LB
-    nodes_explored = 0
-
-    start_beb = time.time()
-    while pq and time.time() - start_beb < timelimit:
-        # Get the node with the lowest bound
-        current_lb, fixed_vars, var_to_branch_on = heapq.heappop(pq)
-
-        nodes_explored += 1
-
-        # Change the sign for your convenience
-        current_lb = -current_lb
-
-        # Prune if the current lower bound is worse than the best found so far
-        if current_lb >= best_objective:
-            continue
-
-        else:
+        # Compute the completion time
+        T_int = np.zeros(n_machines)
+        for i in range(len(P)):
             for j in range(n_machines):
-                new_fixed_vars = fixed_vars + [((var_to_branch_on, j), 1)]
-                T_new, X_new, is_optimal = new_LB(P, n_machines=n_machines, fixed=new_fixed_vars)
-                if verbose:
-                    print("New node: ", new_fixed_vars, " with LB: ", T_new)
-                if T_new < best_objective and not is_optimal:
-                    # Because if it is optimal, we have the best we can get at that node
-                    heapq.heappush(pq, (-T_new, new_fixed_vars, X_new))
+                T_int[j] += P[i] * X_int[i, j]
 
+        return LB, X_int, max(T_int), var_to_branch_on
 
-        # Exit control: Pick the smallest LB among the active nodes
-        if pq:
-            best_lb = -pq[0][0]
+class Node:
+    def __init__(self, level, bound, solution, upper_bound, variable_to_branch_on, fixed_variables = []):
+        self.level = level       # Depth of the node in the tree
+        self.lower_bound = bound       # Lower bound for the node
+        self.solution = solution # Partial solution up to this node
+        self.upper_bound = upper_bound
+        self.variable_to_branch_on = variable_to_branch_on
+        self.fixed_variables = fixed_variables
 
-        if best_objective / best_lb <= 1 + epsilon:
-            if verbose:
-                print("Finished with best objective: ", best_objective, " and best LB: ", best_lb)
-            depth = len(fixed_vars)
-            optimal = True
-            break
+    # Comparison operators for priority queue
+    def __lt__(self, other):
+        return self.lower_bound > other.lower_bound
 
-    return best_objective, best_lb, best_solution, nodes_explored, depth, time.time() - start, optimal
+class BranchAndBound:
+    def __init__(self, P, n_machines, timelimit = None, epsilon = 0, verbose= True):
+        self.P = P
+        self.n_machines = n_machines
+        self.best_solution = None
+        self.best_value = float('inf')
+        self.node_count = 0
+        self.best_lower_bound = -float('inf')
+        self.runtime = 0
+        self.timelimit = timelimit
+        self.epsilon = epsilon
+        self.verbose = verbose
+
+    def solve(self):
+        start = time.time()
+        queue = []
+        # Build the initial node
+        LB, X_int, T_int , var_to_branch_on = new_LB(P, n_machines, fixed = [])
+        initial_node = Node(0, LB, X_int, T_int, var_to_branch_on)
+        heapq.heappush(queue, initial_node)
+
+        while queue and self.runtime < self.timelimit:
+
+            self.best_lower_bound = queue[0].lower_bound
+
+            current_node = queue.pop(0)
+
+            fixed_vars = current_node.fixed_variables
+
+            # Update the fixed variables
+            for j in range(n_machines):
+                new_fixed_vars = fixed_vars + [(current_node.variable_to_branch_on, j)]
+
+                # Solve an optimization problem with the new fixed variables
+                LB, X_int, T_int, var_to_branch_on = new_LB(P, n_machines, fixed = new_fixed_vars)
+
+                # If the new lower bound is > than the best solution, discard the node (prune by bound)
+                if LB > self.best_value:
+                    continue
+                else:
+                    # Add the node to the queue
+                    new_node = Node(current_node.level + 1, LB, X_int, T_int, var_to_branch_on, fixed_variables = new_fixed_vars)
+                    heapq.heappush(queue, new_node)
+
+                    if T_int < self.best_value:
+                        self.best_value = T_int
+                        self.best_solution = X_int
+
+            # Control on the quality of the solution
+            if self.best_value / self.best_lower_bound <= (1 + self.epsilon):
+                print("done by ratio: ", self.best_value / self.best_lower_bound, flush=True)
+                return self.best_solution, self.best_value, self.best_lower_bound, self.node_count, self.runtime
+
+            self.node_count += 1
+            self.runtime = time.time() - start
+            if self.verbose:
+                print("Node count: ", self.node_count, "Runtime: ", self.runtime, "Best value: ", self.best_value, "Best lower bound: ", self.best_lower_bound, flush=True)
+                print("Queue length: ", len(queue), flush=True)
+        if self.runtime >= self.timelimit:
+            print("Done by timelimit", flush=True)
+        return self.best_solution, self.best_value, self.best_lower_bound, self.node_count, self.runtime
 
 test = True
 if test:
     epsilon = 0.01
     dataset = "instancias1a100"
-    timelimit = 5
 
 directory_name = "./data/{}".format(dataset)
 
@@ -223,16 +191,11 @@ instances = os.listdir(directory_name)
 # Sort by name
 instances.sort()
 
-# Pick a random integer
-l = np.random.randint(0, len(instances))
-
-instances = [instances[l]]
-
-instances = ['231.txt']
+instances = ['1013.txt']
 
 print("Instance: ", instances[0], flush=True)
 
-timelimit = 20 # seconds
+timelimit = 100 # seconds
 
 print("Timelimit: ", timelimit, "seconds", flush=True)
 
@@ -242,24 +205,15 @@ for instance in instances:
     # Make the P a column vector -- we are in the identical case
     P = P[:, 0].reshape(-1, 1)
 
-    # best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_standard(P, epsilon,
-    #                                                                                                n_machines,
-    #                                                                                            timelimit=timelimit)
-    # gap = (best_objective - best_lb) / best_objective
-    # print("Old B&B: ", round(runtime, 2), "s", flush=True)
-    # print("\tBest objective: ", best_objective, flush=True)
-    # print("\t Number of nodes explored: ", nodes_explored, flush=True)
-
-
-    best_objective, best_lb, best_solution, nodes_explored, depth, runtime, optimal = BeB_new_LB(P, epsilon,
-                                                                                                   n_machines,
-                                                                                                   timelimit=timelimit, verbose=True)
-    gap = (best_objective - best_lb) / best_objective
-    print("New B&B: ", round(runtime, 2), "s", flush=True)
-    print("\tBest objective: ", best_objective, flush=True)
-    print("\t Number of nodes explored: ", nodes_explored, flush=True)
+    beb = BranchAndBound(P, n_machines, epsilon= epsilon, timelimit = timelimit)
+    X, best, LB, node_count, runtime = beb.solve()
+    print("Best with our B&B: ", best, flush=True)
+    print("\tTime: ", runtime)
 
     # Optimal solution
     opt, X, bb_nodes, runtime, _, _ = JS_ILP(P, n_machines=n_machines, timelimit=timelimit)
     print("Optimal: ", opt, flush=True)
     print("\tTime: ", runtime)
+
+    if runtime < timelimit:
+        print("Ratio: ", best / opt, "<", 1 + epsilon,  flush=True)

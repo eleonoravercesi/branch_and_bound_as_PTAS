@@ -2,9 +2,23 @@ import numpy as np
 import gurobipy as gp
 from gurobipy import GRB
 from algorithms import JS_LP
-import fractions
+from itertools import combinations
 from math import ceil
 import subprocess
+from itertools import combinations
+
+TOL = 1e-6
+
+
+def get_unfixed(X):
+    n, m = X.shape
+    unfixed = []
+    for i in range(n):
+        for j in range(m):
+            if abs(round(X[i, j]) - X[i, j]) > TOL:
+                unfixed.append(i)
+                break
+    return unfixed
 
 
 def from_A_b_to_polymake_file(A, b, index_of_last_equality_constraint, out_filename):
@@ -71,7 +85,7 @@ def JS_LP_A_b(P, T, n_machines=None, verbose=False, fixed=[]):
 
     # Constraint: makespan is the maximum completion time
     for j in range(n_machines):
-        m.addConstr(sum(x[i, j] * P[i, j] for i in range(n_items)) <= T)
+        m.addConstr(sum(- [i, j] * P[i, j] for i in range(n_items)) >= -T)
 
     for i in range(n_items):
         for j in range(n_machines):
@@ -81,17 +95,21 @@ def JS_LP_A_b(P, T, n_machines=None, verbose=False, fixed=[]):
 
 
 number_of_seeds = 1
+n_jobs = 3
+n_machines = 2
+
+pairs_to_idx = dict(zip([(i, j) for i in range(n_jobs) for j in range(n_machines)], range(n_jobs * n_machines)))
+idx_to_pairs = dict(zip(range(n_jobs * n_machines), [(i, j) for i in range(n_jobs) for j in range(n_machines)]))
+
 for seed in range(1):
     np.random.seed(seed)
-    n_jobs = 3
-    n_machines = 2
     P = np.random.randint(1, 100, (n_jobs, n_machines))
 
 
-    obj, X = JS_LP(P)
-    print(obj)
-    obj = ceil(obj)
-    A, b = JS_LP_A_b(P, obj)
+    T, X_s = JS_LP(P)
+
+    T_int = ceil(T)
+    A, b = JS_LP_A_b(P, T_int)
 
     # From scipy sparse to numpy
     A = A.toarray()
@@ -104,12 +122,40 @@ for seed in range(1):
     # Run polymake
     subprocess.run("polymake --script ./output/vertices.pl > ./output/vertices.txt", shell=True)
 
-    # Parse the output
-    with open("./output/vertices.txt", "r") as f:
-        lines = f.readlines()
+    # # Parse the output
+    # with open("./output/vertices.txt", "r") as f:
+    #     lines = f.readlines()
 
-    vertices = []
+    #vertices = []
 
-    for line in lines:
-        line_vec = line.strip().split(" ")
-        for x in line_vec[1:]
+    # for line in lines:
+    #     v = []
+    #     line_vec = line.strip().split(" ")
+    #     for v_i in line_vec[1:]:
+    #         if "/" in v_i:
+    #             v_i = v_i.split("/")
+    #             v.append(int(v_i[0]) / int(v_i[1]))
+    #         else:
+    #             v.append(int(v_i))
+    #     vertices.append(v)
+    #
+    # # Are these vertices a good counter example?
+    # all_pairs = combinations(range(n_jobs), 2)
+    # for pair in all_pairs:
+    #     v_1, v_2 = vertices[pair[0]], vertices[pair[1]]
+    #     # Do they have a common 1?
+    #     for i1 in range(n_jobs):
+    #         for j1 in range(n_machines):
+    #             if v_1[pairs_to_idx[(i1, j1)]] == 1 and v_2[pairs_to_idx[(i1, j1)]] == 1:
+    #                 # They have the same job assigned on two different machines
+    #                 # Do they have another fractional jon i common
+    #                 for i2 in range(n_jobs):
+    #                     if i2 != i1:
+    #                         for j2 in range(n_machines):
+    #                             # Do they have a common non zero?
+    #                             if v_1[pairs_to_idx[(i2, j2)]] > TOL and v_2[pairs_to_idx[(i2, j2)]] != TOL:
+    #                                 print("Found a counter example")
+    #                                 print(P)
+    #                                 print(v_1)
+    #                                 print(v_2)
+    #                                 exit(1)

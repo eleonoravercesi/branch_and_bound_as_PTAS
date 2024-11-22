@@ -22,8 +22,10 @@ def get_unfixed(X):
     return unfixed
 
 for _ in tqdm(range(1)):
-    P = np.random.randint(1, 100, (n, m))
-    obj, X_s = JS_LP(P)
+    #P = np.random.randint(1, 100, (n, m))
+    P = [[35, 67], [36, 27], [1, 73]]
+    P = np.asarray(P)
+    obj_0, X_s = JS_LP(P)
 
     unfixed = get_unfixed(X_s)
 

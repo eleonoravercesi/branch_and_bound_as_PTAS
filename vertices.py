@@ -85,7 +85,7 @@ def JS_LP_A_b(P, T, n_machines=None, verbose=False, fixed=[]):
 
     # Constraint: makespan is the maximum completion time
     for j in range(n_machines):
-        m.addConstr(sum(- [i, j] * P[i, j] for i in range(n_items)) >= -T)
+        m.addConstr(sum(- x[i, j] * P[i, j] for i in range(n_items)) >= -T) # The error was here
 
     for i in range(n_items):
         for j in range(n_machines):
@@ -104,6 +104,9 @@ idx_to_pairs = dict(zip(range(n_jobs * n_machines), [(i, j) for i in range(n_job
 for seed in range(1):
     np.random.seed(seed)
     P = np.random.randint(1, 100, (n_jobs, n_machines))
+
+    P = [[35, 67], [36, 27], [1, 73]]
+    P = np.array(P)
 
 
     T, X_s = JS_LP(P)

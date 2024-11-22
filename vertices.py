@@ -2,6 +2,7 @@ import numpy as np
 import gurobipy as gp
 from gurobipy import GRB
 from algorithms import JS_LP
+import fractions
 
 def JS_LP_A_b(P, T, n_machines = None, verbose = False, fixed = []):
     if n_machines == None:
@@ -34,6 +35,10 @@ def JS_LP_A_b(P, T, n_machines = None, verbose = False, fixed = []):
     for j in range(n_machines):
         m.addConstr(sum(x[i, j] * P[i, j] for i in range(n_items)) <= T)
 
+    for i in range(n_items):
+        for j in range(n_machines):
+            m.addConstr(x[i, j] >= 0)
+
     return m.getA(), m.getAttr('RHS')
 
 P = np.array([[48, 69],
@@ -41,13 +46,16 @@ P = np.array([[48, 69],
 [84, 24]])
 
 obj, X = JS_LP(P)
+print(obj)
+from math import ceil
+obj = ceil(obj)
 A, b = JS_LP_A_b(P, obj)
 
 # From scipy sparse to numpy
 A = A.toarray()
 b = np.asarray(b).reshape(-1, 1)
 
-index_of_last_equality_constraint = P.shape[0] - 1
+index_of_last_equality_constraint = P.shape[0]
 
 def from_A_b_to_polymake_file(A, b, index_of_last_equality_constraint, out_filename):
         F = open(out_filename, "w+")
@@ -60,8 +68,8 @@ def from_A_b_to_polymake_file(A, b, index_of_last_equality_constraint, out_filen
         b_ineq = b[index_of_last_equality_constraint:, :]
 
         for k in range(A_eq.shape[0]):
-                F.write("[{}, ".format(str(int(-b_eq[k][0]))))
-                contraint = ", ".join([str(int(A_eq[k, j])) for j in range(n_vars)])
+                F.write("[{}, ".format(str(-b_eq[k][0])))
+                contraint = ", ".join([str(A_eq[k, j]) for j in range(n_vars)])
                 F.write(contraint)
                 if k == A_eq.shape[0] - 1:
                         F.write("]")
@@ -72,8 +80,8 @@ def from_A_b_to_polymake_file(A, b, index_of_last_equality_constraint, out_filen
         # Write constraints (inequalities)
 
         for i in range(A_ineq.shape[0]):
-                F.write("[{}, ".format(str(int(-b_ineq[i][0]))))
-                contraint = ", ".join([str(int(A_ineq[i, j])) for j in range(n_vars)])
+                F.write("[{}, ".format(str(-b_ineq[i][0])))
+                contraint = ", ".join([str(A_ineq[i, j]) for j in range(n_vars)])
                 F.write(contraint)
                 if i == n_constraints - 1:
                         F.write("]")

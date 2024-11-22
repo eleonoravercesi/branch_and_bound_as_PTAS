@@ -14,7 +14,7 @@ def parse_instance(instance_name, dir):
     T = np.zeros((n_items,n_machines))
     n_idx = 0
     for line in lines:
-        line_vec = line.strip().split("\t")
+        line_vec = line.strip().split()
         # Only the odd entries are relevant
         times = [int(x) for x in line_vec[1::2]]
         T[n_idx, :] = times

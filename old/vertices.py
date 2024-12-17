@@ -99,19 +99,18 @@ def JS_LP_A_b(P, T, n_machines=None, verbose=False, fixed=[]):
     return m.getA(), m.getAttr('RHS')
 
 
-number_of_seeds = 30
-n_jobs = 10
-n_machines = 3
+number_of_seeds = 1
 
+#P = [[2 ,2 ,1], [2, 2, 2], [2, 1, 2]]
 pairs_to_idx = dict(zip([(i, j) for i in range(n_jobs) for j in range(n_machines)], range(n_jobs * n_machines)))
 idx_to_pairs = dict(zip(range(n_jobs * n_machines), [(i, j) for i in range(n_jobs) for j in range(n_machines)]))
 
 for _ in range(number_of_seeds):
     #np.random.seed(seed)
-    P = np.random.randint(1, 100, (n_jobs, n_machines))
+    #P = np.random.randint(1, 100, (n_jobs, n_machines))
 
     P = np.array(P)
-
+    P = P.transpose()
 
     T, X_s = JS_LP(P)
 
@@ -145,6 +144,9 @@ for _ in range(number_of_seeds):
             else:
                 v.append(int(v_i))
         vertices.append(v)
+
+    for v in vertices:
+        print(v)
 
     # Now that I have all vertices
     for (i, j) in pairs_to_idx.keys():

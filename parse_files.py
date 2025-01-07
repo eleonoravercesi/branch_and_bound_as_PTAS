@@ -3,7 +3,6 @@ Parser for problem we want to analyze
 For the job scheduling problem, we have this benchmark: TODO disappeared from the web?
 For the knapsack, we use instead TODO ?
 '''
-from typing import reveal_type
 
 import numpy as np
 

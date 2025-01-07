@@ -17,7 +17,7 @@ def identical_machines_job_scheduling(p, n_machines, timelimit = 10*60, tol = 1e
     # Create the solver
     solver = pywraplp.Solver.CreateSolver('SCIP')
     # Set a timelimit
-    solver.set_time_limit(timelimit * 1000)  # Convert seconds to milliseconds
+    solver.set_time_limit(timelimit * 1000)
     if not solver:
         print("Solver not available.")
         return None, None

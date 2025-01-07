@@ -7,17 +7,23 @@ from tqdm import tqdm
 from itertools import product
 
 test_type = "job_scheduling_identical"
-config = {'dir' : './data/instancias1a100', 'identical' : True, 'uniform' : [], 'timelimit' : 1}
+config = {'dir' : './data/instancias1a100', 'identical' : True, 'uniform' : [], 'timelimit' : 60}
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["dir", "instance", "n_machines", "n_jobs", "epsilon", "lower_bound_type", "branching_rule", "node_selection", "rounding_rule", "makespan", "runtime", "depth", "best_solution", "optimal", "optimality_gap"])
 
 dir = config['dir']
 files = os.listdir(dir)
+
+# Sort files
+files.sort()
 timelimit = config['timelimit']
 
+print("Set a time limit of ", timelimit, " seconds")
 
-for file in files:
+
+for file in files[:1]:
+    print("Solving ", dir, file, "exactly....")
     P, n_machines = parse_job_scheduling(file, dir, identical=config['identical'], uniform=config['uniform'])
     # Solve with exact method
     T_opt, X, status = identical_machines_job_scheduling(P, n_machines, timelimit=timelimit)
@@ -25,7 +31,7 @@ for file in files:
                     ["largest_fractional_job", "largest_fraction"],
                     ["largest_lower_bound", "depth_first", "breadth_first"], ["arbitrary_rounding"])
     tests = list(tests)
-    print("Solving ", dir, file)
+    print("Solving ", dir, file, "with branch and bound....")
     print(f"\tRunning {len(tests)} tests...")
     for test in tqdm(tests):
         epsilon, lower_bound_type, branching_rule, node_selection, rounding_rule = test
@@ -44,3 +50,17 @@ for file in files:
 
         df.to_csv(f"./output/results_{test_type}.csv", index=False)
     print("\tDone with ", file)
+
+# Errore al 27 do 36
+'''
+Traceback (most recent call last):
+  File "/home/vercee/Documents/branch_and_bound_for_job_scheduling/main.py", line 42, in <module>
+    T, X, runtime, depth = beb.solve()
+  File "/home/vercee/Documents/branch_and_bound_for_job_scheduling/BeB/job_scheduling_identical_machines.py", line 208, in solve
+    j_to_branch = self.branch(X_fractional_this_node, P)
+  File "/home/vercee/Documents/branch_and_bound_for_job_scheduling/BeB/job_scheduling_identical_machines.py", line 143, in branch
+    i = max(fractional_variables, key=lambda j: X_frac[j])
+  File "/home/vercee/Documents/branch_and_bound_for_job_scheduling/BeB/job_scheduling_identical_machines.py", line 143, in <lambda>
+    i = max(fractional_variables, key=lambda j: X_frac[j])
+KeyError: 384
+'''

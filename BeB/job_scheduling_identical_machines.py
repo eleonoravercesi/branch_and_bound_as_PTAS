@@ -134,13 +134,14 @@ class BeB_JS_ID():
         for (j, i) in X_frac.keys():
             if abs(round(X_frac[j, i]) - X_frac[j, i]) > self.tol:
                 fractional_variables.add(j)
+        # Cast it to a list
+        fractional_variables = list(fractional_variables)
         if self.branching_rule == "largest_fractional_job":
-            # Cast it to a list
-            fractional_variables = list(fractional_variables)
             # Get the one with the largest completion time
             i = max(fractional_variables, key=lambda j: P[j])
         elif self.branching_rule == "largest_fraction":
-            i = max(fractional_variables, key=lambda j: X_frac[j])
+            # Get the key maximizing the fractional value
+            i, _ = max({(i, j) : X_frac[(i, j)] for (i, j) in X_frac.keys() if i in fractional_variables}, key=X_frac.get)
         else:
             raise ValueError("Unknown branching rule, must be either 'largest_fractional_job' or 'largest_fraction', received ", self.branching_rule)
         return i

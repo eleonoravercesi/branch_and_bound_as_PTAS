@@ -1,4 +1,4 @@
-from algorithms import list_scheduling_algorithm_unrelated, list_scheduling_algorithm_identical, JS_ILP
+from algorithms import JS_ILP
 from parse_files import parse_instance
 
 if __name__ == '__main__':

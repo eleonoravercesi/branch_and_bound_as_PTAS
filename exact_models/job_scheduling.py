@@ -55,16 +55,16 @@ def identical_machines_job_scheduling(p, n_machines, timelimit = 10*60, tol = 1e
     status = solver.Solve()
 
     # Check solution status
-    if status == pywraplp.Solver.OPTIMAL:
+    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
         makespan = Cmax.solution_value()
         X = {}
         for j in range(n):
             for i in range(m):
                 if x[j, i].solution_value() > tol:
                     X[(j, i)] = x[j, i].solution_value()
-        return makespan, X
+        # Return also the timelimit
+        return makespan, X,  status
     else:
-        print("The problem does not have an optimal solution.")
-        return None, None
+        return None, None, None
 
 

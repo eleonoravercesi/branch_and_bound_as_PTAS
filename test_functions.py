@@ -2,11 +2,8 @@ from exact_models.job_scheduling import identical_machines_job_scheduling
 from BeB.job_scheduling_identical_machines import BeB_JS_ID
 import numpy as np
 from utils import is_integer_sol
-'''
-Seed = 1 and P = np.random.randint(1, 100, 20).tolist() It's hard with epsilon = 0.01 and both methods
-'''
 
-for seed in range(1, 2):
+for seed in range(1, 5):
     np.random.seed(seed)
     print(f"Seed: {np.random.get_state()[1][0]}")
     P = np.random.randint(1, 100, 20).tolist()  # Job processing times
@@ -34,7 +31,7 @@ for seed in range(1, 2):
 
     # PTAS
     print("PTAS:")
-    beb = BeB_JS_ID(P, machines, lower_bound_type="binary_search", epsilon=0.01, verbose=1)
+    beb = BeB_JS_ID(P, machines, lower_bound_type="binary_search", epsilon=0.001, verbose=0)
     T, X, runtime, depth = beb.solve()
     assert is_integer_sol(X), "PTAS solution is not integer" + str(X)
     assert T >= makespan, f"PTAS makespan {T} is smaller than the exact makespan {makespan}"

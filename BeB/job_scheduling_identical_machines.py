@@ -1,7 +1,5 @@
 from lower_bounds.lower_bounds_JS_identical import linear_relaxation, binary_search
 import heapq
-
-from old.test_worst_case import fixed_vars
 from utils import is_integer_sol
 import time
 
@@ -76,7 +74,7 @@ class BeB_JS_ID():
     General purpose class for the branch and bound problem
     """
     def __init__(self, P, n_machines, epsilon=0, timelimit = float('inf'), lower_bound_type="linear_relaxation",
-                 branching_rule="largest_fractional_job",  node_selection="default",
+                 branching_rule="largest_fractional_job",  node_selection="largest_lower_bound",
                  rounding_rule = "arbitrary_rounding", tol = 1e-5, verbose = 0):
         """
         Parameters:
@@ -116,11 +114,11 @@ class BeB_JS_ID():
         if self.lower_bound_type not in ["linear_relaxation", "binary_search"]:
             raise ValueError("The lowerbound must be either 'linear_relaxation' or 'binary_search'")
 
-        if self.branching_rule not in ["default", "largest_fractional_job"]:
+        if self.branching_rule not in ["largest_fractional_job", "largest_fraction"]:
             raise ValueError("The branching rule must be either 'default' or 'largest_fractional_job'")
 
-        if self.node_selection not in ["largest_lower_bound", "default"]:
-            raise ValueError("The node selection rule must be either 'largest_lower_bound' or 'default'")
+        if self.node_selection not in ["largest_lower_bound", "depth_first", "breadth_first"]:
+            raise ValueError("The node selection rule must be either 'largest_lower_bound', 'depth_first' or 'breadth_first'")
 
     def compute_lower_bound(self, P, n_machines, fixed_assignments = None):
         if self.lower_bound_type == "linear_relaxation":
@@ -133,16 +131,18 @@ class BeB_JS_ID():
 
     def branch(self, X_frac, P):
         fractional_variables = set()
+        for (j, i) in X_frac.keys():
+            if abs(round(X_frac[j, i]) - X_frac[j, i]) > self.tol:
+                fractional_variables.add(j)
         if self.branching_rule == "largest_fractional_job":
-            for (j, i) in X_frac.keys():
-                if abs(round(X_frac[j, i]) - X_frac[j, i]) > self.tol:
-                    fractional_variables.add(j)
+            # Cast it to a list
+            fractional_variables = list(fractional_variables)
+            # Get the one with the largest completion time
+            i = max(fractional_variables, key=lambda j: P[j])
+        if self.branching_rule == "largest_fraction":
+            i = max(fractional_variables, key=lambda j: X_frac[j])
         else:
-            raise ValueError("Unknown branching rule")
-        # Cast it to a list
-        fractional_variables = list(fractional_variables)
-        # Get the one with the largest completion time
-        i = max(fractional_variables, key=lambda j: P[j])
+            raise ValueError("Unknown branching rule, must be either 'largest_fractional_job' or 'largest_fraction'")
         return i
 
 

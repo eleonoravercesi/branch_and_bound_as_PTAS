@@ -8,15 +8,10 @@ It runs tests using several algorithms
 (v) Our B&B with profiling
 All the tests are done with a timelimit of 10 minutes
 '''
-import sys
 import os
 from parse_files import parse_instance
-from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical, BeB_standard, BeB_with_profile
-import gurobipy as gp
+from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical, BeB_standard
 import time
-import numpy as np
-from math import floor
-
 
 # Parse the arguments from the command line
 # try:

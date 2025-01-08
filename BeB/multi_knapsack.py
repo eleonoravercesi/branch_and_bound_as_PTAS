@@ -53,6 +53,7 @@ class BranchAndBound():
         if self.rounding_rule_strategy == "martello_toth_rule":
             fractional_items = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
             # Create all the combinations that assign each fractional item to a knapsack
+            # TODO finire qui
             # The key is the item, the value is the knapsack
             possible_assignments = {}
 

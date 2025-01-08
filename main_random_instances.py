@@ -9,7 +9,7 @@ from itertools import product
 
 test_problem = "job_scheduling_identical"
 test_type = "random_instances"
-config = {'identical' : True, 'uniform' : [], 'timelimit' : 600, 'n_instances' : 30, 'n_jobs' : [10, 50, 100, 500, 1000], 'n_machines' : [2, 5, 10, 20, 50, 100]}
+config = {'identical' : True, 'uniform' : [], 'timelimit' : 600, 'n_instances' : 30, 'n_jobs' : [50, 100, 500, 1000], 'n_machines' : [2, 5, 10, 20, 50, 100]}
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["seed", "n_machines", "n_jobs", "epsilon", "lower_bound_type", "branching_rule", "node_selection", "rounding_rule", "makespan", "runtime", "depth", "best_solution", "optimal", "optimality_gap"])

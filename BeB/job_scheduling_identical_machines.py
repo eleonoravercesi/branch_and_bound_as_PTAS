@@ -1,6 +1,6 @@
 from lower_bounds.lower_bounds_JS_identical import linear_relaxation, binary_search
 import heapq
-from utils import is_integer_sol
+from utils import is_integer_sol, is_integer_val
 import time
 
 class Node():
@@ -15,29 +15,37 @@ class Node():
         else:
             self.fixed_vars = fixed_vars # You can always assign the first job to the first machine w.l.o.g.
 
+        # Get the number of jobs
+        self.n_jobs = max([j for (j, i) in X_frac.keys()]) + 1 # Every job must be assigned
+
         # This will be updated in the init
         self.X_int = None
         self.upper_bound = None # This will be set by the solver
 
         if rounding_rule == "arbitrary_rounding":
             # Just round each job to the machine with the largest fraction
-            keys_not_integer = {}
-            for (j, i) in X_frac.keys():
+            keys_not_integer = set()
+            for (j, i) in X_frac.keys():  # job, machine
                 if not abs(round(X_frac[j, i]) - X_frac[j, i]):
-                    if j not in keys_not_integer:
-                        keys_not_integer[j] = []
-                    keys_not_integer[j].append(i)
-            X_int = X_frac.copy()
+                    keys_not_integer.add(j)
+            # Now I have a list with all the non integer jobs
+            X_int = {}
             # TODO there is an error HERE (the solution is not correct)
-            for j in keys_not_integer:
-                i_bar = max(keys_not_integer[j], key=lambda i: X_frac[j, i])
-                for (j, i) in X_frac.keys():
-                    if i_bar != i:
-                        X_int[j, i] = 0
-                    else:
-                        X_int[j, i] = 1
-            # Remove from X_int all the keys for which the value is 0
-            X_int = {k: v for k, v in X_int.items() if v > 0}
+            # Every job must be assigned to a machine
+            for j in range(self.n_jobs):
+                # Get all the assignation of this job
+                assignations = [(j_prime, i) for (j_prime, i) in X_frac.keys() if j_prime == j]
+                if len(assignations) == 1:
+                    # Is integer if you assign it just one (not splitted)
+                    X_int[assignations[0]] = 1
+                else:
+                    # Pick the assignation where is maximal
+                    x = max(assignations, key=lambda x: X_frac[x])
+                    X_int[x] = 1
+            # Now I have the integer solution, do some cheks
+            assert len(X_int) == self.n_jobs
+            # Check that some jobs are not assigned twice
+            assert len(set([j for (j, i) in X_int.keys()])) == self.n_jobs
             self.X_int = X_int
 
     def set_upper_bound(self, P, n_machines):
@@ -151,76 +159,51 @@ class BeB_JS_ID():
 
 
     def solve(self):
-        # Just give some convenient names
-        P = self.P
-        n_machines = self.n_machines
+        """
+        Solve the branch and bound problem
 
-        # Start a timer
+        Returns:
+        - The makespan
+        - The assignment
+        - The runtime
+        - The depth of the tree
+        """
+        # Start the timer
         start = time.time()
-        # Initialize the node queue (priority queue based on lower bound)
-        node_queue = []
 
-        T, X, feas = self.compute_lower_bound(P, n_machines, fixed_assignments = [(0, 0)]) # The first job is always assigned to the first machine
-        assert feas
-        if is_integer_sol(X):
-            return T, X, time.time() - start, 0
+        # Solve the lower bound
         depth = 0
-        root_node = Node(depth, -T, X)
-        root_node.set_upper_bound(P, n_machines)
+        T_LB, X_frac, status = self.compute_lower_bound(self.P, self.n_machines, fixed_assignments=[(0, 0)]) # Assign the first job to the first machine (w.l.o.g.)
 
-        # Update the global upper bound and the corresponding solution, as well as the global lower bound
-        self.GU, self.GU_argmin = root_node.get_upper_bound()
-        self.GL = -root_node.lower_bound
+        # Create Node
+        root = Node(depth, T_LB, X_frac, fixed_vars=[(0, 0)], rounding_rule=self.rounding_rule)
+        # Update the upper bound
+        root.set_upper_bound(self.P, self.n_machines)
 
-        # Push the root node on the queue
-        heapq.heappush(node_queue, root_node)
+        # Is it integer?
+        if is_integer_sol(X_frac, tol=self.tol):
+            return T_LB, X_frac, time.time() - start, depth
+
+        # Update the global values
+        self.GU = root.upper_bound
+        self.GU_argmin = root.X_int
+        self.GL = root.lower_bound
+
+        if self.verbose >= 2:
+            print("Initial lower bound: ", T_LB)
+            print("Initial upper bound: ", self.GU)
+
+        # Create a priority queue
+        queue = []
+        # Push the root node in the queue
+        heapq.heappush(queue, root)
+
+        # While the queue is not empty
+        while len(queue) > 0:
+            # Pop the node with the largest lower bound
+            node = heapq.heappop(queue)
 
 
-
-        while len(node_queue) > 0 and time.time() - start < self.timelimit:
-            # Update GL: it's the minimal local lower bound of the active nodes
-            self.GL = -node_queue[0].lower_bound
-            if self.verbose >= 1:
-                print("STATUS:")
-                print("\tcurrent depth: ", depth)
-                print("\tCurrent largest lower bound: ", self.GL)
-                print("\tCurrent global upper bound: ", self.GU)
-
-            # Get the node with the largest lower bound
-            current_node = heapq.heappop(node_queue)
-
-            # First, is the termination criterion satisfied?
-            if self.GU / self.GL <= 1 + self.epsilon:
-                return self.GU, self.GU_argmin, time.time() - start, depth
-
-            if -current_node.lower_bound >= self.GU: # Don't forget that is negative
-                continue # Suboptimal for sure
-            else:
-                X_fractional_this_node = current_node.get_fractional_solution()
-                # If it's not fractional
-                if is_integer_sol(X_fractional_this_node):
-                    # Check if it's better than the best solution
-                    if -current_node.lower_bound < self.GU:
-                        self.GU, self.GU_argmin = -current_node.lower_bound, X_fractional_this_node # That is actually the integer solution
-                    if self.verbose >= 1:
-                        print("New best solution found: ", self.GU, "in ", time.time() - start, "seconds")
-
-                    # Else you just skip the node -- prune by bound
-                else: # Here, the solution is not integer and the lowerbound is smaller than the best solution, so you have to branch
-                    # Branch on the variable that has the largest job
-                    j_to_branch = self.branch(X_fractional_this_node, P)
-                    fixed_vars = current_node.get_fixed_vars()
-                    for i in range(n_machines):
-                        new_fixed_vars = fixed_vars + [(j_to_branch, i)]
-                        T_new, X_new, _ = self.compute_lower_bound(P, n_machines, fixed_assignments=new_fixed_vars)
-                        # Create a new node with all the parameter in places
-                        node = Node(depth, -T_new, X_new, rounding_rule=self.rounding_rule)
-                        node.update_fixed_vars(new_fixed_vars)
-                        node.set_upper_bound(P, n_machines)
-                        # Push it on the queue
-                        heapq.heappush(node_queue, node)
-            # Update the depth
-            depth += 1
 
         # If the queue is empty, return the best solution found so far
         return self.GU, self.GU_argmin, time.time() - start, depth

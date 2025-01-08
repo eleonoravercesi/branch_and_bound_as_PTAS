@@ -161,6 +161,8 @@ class BranchAndBound():
                 new_capacities_keep = new_capacities.copy()
                 X_frac, UB = self.upper_bound(profits.copy(), weights.copy(), new_capacities, new_fixed)
 
+                # TODO this could be infeasible, prune by infesibilityyyy
+
                 # Add the fixed to X_frac
                 for (j, i) in new_fixed:
                     X_frac[(j, i)] = 1

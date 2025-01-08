@@ -8,7 +8,6 @@ def dantzig_upper_bound(profits, weights, capacities, fixed):
     # Prepocessing: the fixed items (j, i) are item j fixed on knapsack i. We will reduce the capacities of the knapsacks acordingly.
     for (j, i) in fixed:
         if i < n_knapsacks:
-            capacities[i] -= weights[j]
             weights[j] = 0
             profits[j] = 0
 

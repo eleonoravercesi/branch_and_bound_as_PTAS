@@ -1,4 +1,4 @@
-from lower_bounds.lower_bounds_JS_identical import linear_relaxation, binary_search
+from bounds.lower_bounds_JS_identical import linear_relaxation, binary_search
 import heapq
 from utils import is_integer_sol, is_integer_val
 import time

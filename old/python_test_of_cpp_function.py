@@ -1,5 +1,5 @@
 from algorithms import JS_ILP
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 
 if __name__ == '__main__':
     # instance = "01.txt"

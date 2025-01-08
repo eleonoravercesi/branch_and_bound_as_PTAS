@@ -4,7 +4,7 @@ import os
 import numpy as np
 from algorithms import JS_ILP
 from utils import round_LP_solution_matching
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 import gurobipy as gp
 from algorithms import BeB_standard
 

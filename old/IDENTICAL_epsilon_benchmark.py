@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 from algorithms import JS_ILP
 
 # Pick a directory

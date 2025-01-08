@@ -1,9 +1,6 @@
-import os
-from parse_files import parse_job_scheduling
-from BeB.job_scheduling_identical_machines import BeB_JS_ID
+from old.job_scheduling_identical_machines import BeB_JS_ID
 import pandas as pd
-from exact_models.job_scheduling import identical_machines_job_scheduling
-from tqdm import tqdm
+from old.job_scheduling import identical_machines_job_scheduling
 import numpy as np
 from itertools import product
 

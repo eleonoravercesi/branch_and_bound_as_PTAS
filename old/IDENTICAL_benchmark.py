@@ -1,6 +1,6 @@
 import os
 import time
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 from math import ceil
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical, BeB_standard
 

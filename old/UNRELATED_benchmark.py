@@ -2,7 +2,7 @@ import os
 import heapq
 import time
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_fast_idendical
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 from utils import *
 from math import ceil
 

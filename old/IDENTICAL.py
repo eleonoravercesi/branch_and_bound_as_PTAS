@@ -9,7 +9,7 @@ It runs tests using several algorithms
 All the tests are done with a timelimit of 10 minutes
 '''
 import os
-from parse_files import parse_instance
+from old.parse_files import parse_instance
 from algorithms import JS_ILP, JS_LP, JS_LB_BS_identical, BeB_standard
 import time
 

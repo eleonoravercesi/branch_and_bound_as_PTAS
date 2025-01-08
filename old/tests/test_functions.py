@@ -1,6 +1,6 @@
 import numpy as np
-from BeB.job_scheduling_identical_machines import BeB_JS_ID
-from exact_models.job_scheduling import identical_machines_job_scheduling
+from old.job_scheduling_identical_machines import BeB_JS_ID
+from old.job_scheduling import identical_machines_job_scheduling
 
 seed = 0
 np.random.seed(seed)

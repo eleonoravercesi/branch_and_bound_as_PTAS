@@ -28,6 +28,7 @@ class Node():
                         keys_not_integer[j] = []
                     keys_not_integer[j].append(i)
             X_int = X_frac.copy()
+            # TODO there is an error HERE (the solution is not correct)
             for j in keys_not_integer:
                 i_bar = max(keys_not_integer[j], key=lambda i: X_frac[j, i])
                 for (j, i) in X_frac.keys():
@@ -179,7 +180,7 @@ class BeB_JS_ID():
         while len(node_queue) > 0 and time.time() - start < self.timelimit:
             # Update GL: it's the minimal local lower bound of the active nodes
             self.GL = -node_queue[0].lower_bound
-            if self.verbose == 1:
+            if self.verbose >= 1:
                 print("STATUS:")
                 print("\tcurrent depth: ", depth)
                 print("\tCurrent largest lower bound: ", self.GL)
@@ -199,12 +200,13 @@ class BeB_JS_ID():
                 # If it's not fractional
                 if is_integer_sol(X_fractional_this_node):
                     # Check if it's better than the best solution
-                    self.GU, self.GU_argmin = -current_node.lower_bound, X_fractional_this_node # That is asctually the integer solution
-                    if self.verbose == 1:
+                    if -current_node.lower_bound < self.GU:
+                        self.GU, self.GU_argmin = -current_node.lower_bound, X_fractional_this_node # That is actually the integer solution
+                    if self.verbose >= 1:
                         print("New best solution found: ", self.GU, "in ", time.time() - start, "seconds")
 
                     # Else you just skip the node -- prune by bound
-                else: # Here, the solutios is not integer and the lowerbound is smaller than the best solution, so you have to branch
+                else: # Here, the solution is not integer and the lowerbound is smaller than the best solution, so you have to branch
                     # Branch on the variable that has the largest job
                     j_to_branch = self.branch(X_fractional_this_node, P)
                     fixed_vars = current_node.get_fixed_vars()

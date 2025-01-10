@@ -1,76 +1,73 @@
 from pyscipopt import Model
 
-def dantzig_upper_bound(profits, weights, capacities, fixed):
+
+def dantzig_upper_bound(profits, weights, capacities, fixed, verbose = False):
     """
     Compute the upper bound of the multi knapsack using the algorithm of George Dantzig (Discrete variable extremum points, 1957)
+    - The capacities are already reduced
     """
+    # Step 0: initialize some quantities
     n_knapsacks = len(capacities)
     n_items = len(profits)
 
-    # Prepocessing: the fixed items (j, i) are item j fixed on knapsack i. We will reduce the capacities of the knapsacks acordingly.
+    # Step 1: get the not fixed items
     fixed_items = []
     for (j, i) in fixed:
         fixed_items.append(j)
 
-    # Sort the elements decreasingly
     not_fixed_items = [j for j in range(n_items) if j not in fixed_items]
 
+    # Step 2: sort the item
     sorted_items = {}
     for j in not_fixed_items:
         sorted_items[j] = profits[j] / weights[j]
 
     sorted_items = dict(sorted(sorted_items.items(), key=lambda item: item[1], reverse=True))
 
-    current_knapsack = 0
-    current_item_idx = 0
-    sorted_items = list(sorted_items.keys())
-
+    # Define some variables you may need
+    sorted_items = list(sorted_items)
     X_frac = {}
 
-    while current_item_idx < len(not_fixed_items) and current_knapsack < n_knapsacks:
+    while max(capacities) > 0 and len(sorted_items) > 0:
+        # Pop the first item from the list
+        j_to_fix = sorted_items.pop(0)
+        starting_weight = weights[j_to_fix]
 
-        # If the sum of the capacities is smaller than the first element to be stored, store it separatetly and return
-        if sum(capacities) < weights[sorted_items[current_item_idx]]:
-            for i in range(n_knapsacks):
-                if capacities[i] > 0:
-                    X_frac[(sorted_items[current_item_idx], i)] = capacities[i] / weights[sorted_items[current_item_idx]]
-                    capacities[i] = 0
-            total_profit = sum([profits[j] * X_frac[(j, i)] for (j, i) in X_frac.keys()])
-            return X_frac, total_profit, True
+        already_assigned_partially = False
 
-        if capacities[current_knapsack] == 0:
-            current_knapsack += 1
+        # Create a list where the item r sum up the capacities until r
+        capacities_sum = [sum(capacities[:r + 1]) for r in range(len(capacities))]
+
+        # Get the minimum index for with weights[j_to_fix] is smaller than capacities sum
+        r_list = [r for r in range(n_knapsacks) if capacities_sum[r] >= weights[j_to_fix]]
+        if len(r_list) > 0:
+            r_min = min(r_list)
+
+            for i in range(r_min + 1):
+                if starting_weight <= capacities[i] and not already_assigned_partially:
+                    # Assign it at the most (integrally)
+                    X_frac[(j_to_fix, i)] = 1
+                    capacities[i] = capacities[i] -  starting_weight
+                    weights[j_to_fix] = weights[j_to_fix] -  starting_weight # Done
+                else:
+                    q = min(capacities[i], weights[j_to_fix]) / starting_weight
+                    X_frac[(j_to_fix, i)] = q
+                    capacities[i] = capacities[i] - q * starting_weight
+                    weights[j_to_fix] = weights[j_to_fix] - q * starting_weight
+                    already_assigned_partially = True
+
         else:
-            if weights[sorted_items[current_item_idx]] <= capacities[current_knapsack]:
-                # If it fits integrally, fit it integrally
-                X_frac[(sorted_items[current_item_idx], current_knapsack)] = 1
-                capacities[current_knapsack] -= weights[sorted_items[current_item_idx]]
-                current_item_idx += 1
-            else:
-                # Otherwise, fit it fractionally
-                q = capacities[current_knapsack] / weights[sorted_items[current_item_idx]]
-                X_frac[(sorted_items[current_item_idx], current_knapsack)] = q
+            # You have done! Just fit the last element
+            while max(capacities) > 0:
+                for i in range(n_knapsacks):
+                    if capacities[i] > 0:
+                        q = capacities[i] / weights[j_to_fix]
+                        X_frac[(j_to_fix, i)] = q
+                        capacities[i] = 0
+        if verbose:
+            print(X_frac)
 
-                # Zero the capacity of the knapsack
-                capacities[current_knapsack] = 0
-
-                # Move to the next knapsack
-                current_knapsack += 1
-
-                if current_knapsack < n_knapsacks:
-
-                    # Fit the remaining part of the item
-                    X_frac[(sorted_items[current_item_idx], current_knapsack)] = 1 - q
-                    capacities[current_knapsack] -= weights[sorted_items[current_item_idx]] * (1 - q)
-
-                    # Increment the item
-                    current_item_idx += 1
-        if max(capacities) == 0:
-            # If you have saturated
-            current_item_idx = len(fixed_items)
-            current_knapsack = n_knapsacks
-
-    total_profit = sum([profits[j] * X_frac[(j, i)] for (j, i) in X_frac.keys()])
+    total_profit = sum([X_frac[(j, i)] * profits[j] for (j, i) in X_frac.keys()])
     return X_frac, total_profit, True
 
 
@@ -80,12 +77,6 @@ def dantzig_upper_bound_linear_relaxation(profits, weights, capacities, fixed):
     """
     n_knapsacks = len(capacities)
     n_items = len(profits)
-
-    # Prepocessing: the fixed items (j, i) are item j fixed on knapsack i. We will reduce the capacities of the knapsacks acordingly.
-    for (j, i) in fixed:
-        if i < n_knapsacks:
-            weights[j] = 0
-            profits[j] = 0
 
     # Initialize the model
     model = Model("Knapsack")
@@ -104,6 +95,13 @@ def dantzig_upper_bound_linear_relaxation(profits, weights, capacities, fixed):
     # Add capacity constraint: sum(weights[j] * x[j]) <= capacity[i]
     for i in range(n_knapsacks):
         model.addCons(sum(weights[j] * x[(j, i)] for j in range(n_items)) <= capacities[i])
+
+    # For the fixed items, just add an extra constrain
+    for (j, i) in fixed:
+        if i < n_knapsacks:
+            model.addCons(x[(j, i)] == 1)
+        else:
+            model.addCons(x[(j, i)] == 0)
 
     # Set the objective
     model.setObjective(sum(profits[j] * x[(j, i)] for i in range(n_knapsacks) for j in range(n_items)), sense="maximize")

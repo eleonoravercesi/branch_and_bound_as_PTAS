@@ -31,6 +31,9 @@ class Node():
         self.LB = LB
         self.X_int = X_int
 
+    def __str__(self):
+        return f"fixed = {self.fixed}"
+
 class BranchAndBound():
     def __init__(self, node_selction_strategy, upper_bound, branching_rule, rounding_rule, alpha):
         self.GLB = float("-inf")
@@ -49,6 +52,7 @@ class BranchAndBound():
         self.weights = None
         self.capacities = None
         self.n_knapsacks = None
+        self.n_items = None
 
 
     def upper_bound(self, profits, weights, capacities, fixed):
@@ -69,7 +73,7 @@ class BranchAndBound():
         if self.upper_bound_strategy == "dantzig_upper_bound":
             return dantzig_upper_bound(profits, weights, capacities, fixed)
 
-    def branching_variable(self, X_frac):
+    def branching_variable(self, X_frac, node):
         # Get all the fractional items
         fractional_items = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_items = list(set(fractional_items))
@@ -80,6 +84,12 @@ class BranchAndBound():
         if self.branching_rule_strategy == "profit_per_weight_ratio":
             # Branch on the item with the highest ratio profit/weight
             return max(fractional_items, key=lambda j: self.profits[j]/self.weights[j])
+        if self.branching_rule_strategy == "kolasar_rule": # TODO ????
+            fixed_vars = [j for (j, i) in node.fixed]
+            unfixed = [j for j in range(self.n_items) if j not in fixed_vars]
+            return max(unfixed, key=lambda j: self.profits[j]/self.weights[j])
+
+
 
     def rounding(self, X_frac, capacities, new_fixed):
         """
@@ -108,19 +118,20 @@ class BranchAndBound():
 
     def stopping_criterion(self):
         if self.alpha == 1:
-            return self.GUB - self.GLB >= 1 # Enough because weights an profits are integer
+            return self.GUB - self.GLB >= 1 # Enough because weights and profits are integer
         else:
             return self.GLB / self.GUB < self.alpha
 
 
 
     def solve(self, profits, weights, capacities, verbose = 0):
-
         # Save the data
         self.profits = profits
         self.weights = weights
         self.global_capacities = capacities
-        self.n_knapsacks= len(self.global_capacities)
+
+        self.n_knapsacks = len(self.global_capacities)
+        self.n_items = len(self.profits)
 
         self.GLB = float("-inf")
         self.GUB = float("inf")
@@ -128,11 +139,14 @@ class BranchAndBound():
 
         self.verbose = verbose
 
+        self.TOL = 1e-5
+        self.MAX_NODES = 1e6
+
         start = time.time()
 
         # Istantiate the root node
         depth = 0
-        X_frac, UB, feas = self.upper_bound(profits, weights, capacities.copy(), [])
+        X_frac, UB, feas = self.upper_bound(profits.copy(), weights.copy(), capacities.copy(), [])
         self.GUB = UB
 
         # If X_frac is integer, we have a feasible solution, and return
@@ -141,7 +155,7 @@ class BranchAndBound():
             self.GLB_argmin = X_frac
             if verbose >= 1:
                 print("UB = ", UB, "LB = ", UB, "--> Solved at the root node", flush = True)
-            return UB, X_frac, time.time() - start, depth
+            return UB, X_frac, UB, time.time() - start, 0, 0, 0, True
 
         # If this is not the case, round the solution
         X_int, LB = self.rounding(X_frac, self.global_capacities, [])
@@ -161,38 +175,49 @@ class BranchAndBound():
         if verbose >= 0.5:
             print("Root node: UB = ", UB, "LB = ", LB, flush = True)
 
-        nodes_explored = 1
+        nodes_explored = 1 # Number of nodes explored
+        left_turns = 0
+        max_depth = 0
+
         while self.stopping_criterion():
             parent_node = heappop(queue) # Get the node with the highest UB
-            if self.node_selection_strategy == "greatest_upper_bound":
-                self.GUB = parent_node.UB
-            nodes_explored += 1
-            if verbose >= 1:
-                print(f"Exploring node {nodes_explored - 1}")
-                print(f"Node UB: {parent_node.UB}, Node LB: {parent_node.LB}, path of the node: {parent_node.fixed}")
 
-            # Branching
-            j = self.branching_variable(parent_node.X_frac) # Node 12 issue :O
+            # Update the left turn and max_depth if needed
+            left_turns = max(left_turns, len([k for k in parent_node.fixed if k[1] < self.n_knapsacks]))
+            max_depth = max(max_depth, len(parent_node.fixed))
 
             capacities_parent_node =  parent_node.capacities.copy()
 
-            for i in range(self.n_knapsacks + 1):
-                if verbose >= 1:
+            if self.node_selection_strategy == "greatest_upper_bound":
+                if verbose >=1 and abs(self.GUB - parent_node.UB) > self.TOL:
+                    print(f"New GUB: {self.GUB} --> {parent_node.UB}")
+                self.GUB = parent_node.UB
+            nodes_explored += 1
+            if verbose >= 2:
+                print(f"Exploring node {nodes_explored - 1}")
+                print(f"Node UB: {parent_node.UB}, Node LB: {parent_node.LB}")
+                if verbose >= 2:
+                    print(f"path of the node: {parent_node.fixed}")
+
+            # Branching
+            j = self.branching_variable(parent_node.X_frac, parent_node)
+
+            if weights[j] > max(capacities_parent_node):
+                i = self.n_knapsacks
+
+                if verbose >= 2:
                     print(f"Fixing job {j} on knapsack {i}")
-                # Fix the item j on the knapsack i
+                    # Fix the item j on the knapsack i
                 new_fixed = parent_node.fixed + [(j, i)]
 
                 # Get the capacities
                 new_capacities = capacities_parent_node.copy()
-                if i < self.n_knapsacks:
-                    new_capacities[i] -= weights[j]
 
-
-                if min(new_capacities) >= 0: # Else --> Prune by infeasibility
+                if min(new_capacities) > 0:  # Else --> Prune by infeasibility
                     new_capacities_keep = new_capacities.copy()
                     X_frac, UB, feas = self.upper_bound(profits.copy(), weights.copy(), new_capacities, new_fixed)
 
-                    if feas: # Else --> Prune by infeasibility
+                    if feas:  # Else --> Prune by infeasibility
                         # Add the fixed to X_frac
                         for (j, i) in new_fixed:
                             if i < self.n_knapsacks:
@@ -206,12 +231,12 @@ class BranchAndBound():
                             # Else, prune by integrality, so don't do anything
                         else:
                             # Do the rounding!
-                            X_int, LB = self.rounding(X_frac, new_capacities_keep, new_fixed) # This is just partial, now you have to complete everything with the fixed
+                            X_int, LB = self.rounding(X_frac, new_capacities_keep,
+                                                      new_fixed)  # This is just partial, now you have to complete everything with the fixed
                             for (j, i) in new_fixed:
                                 if i < self.n_knapsacks:
                                     X_int[(j, i)] = 1
                                     LB += profits[j]
-
 
                             # if verbose >= 1:
                             #     print(f"\twith new capacities {new_capacities_keep} --> UB = {UB}, LB = {LB}")
@@ -220,13 +245,12 @@ class BranchAndBound():
                             if UB >= self.GLB:
                                 # Add it to the queue
                                 # X_frac, UB, depth, strategy, fixed, capacities
-                                node = Node(X_frac, UB, parent_node.depth + 1, self.node_selection_strategy, new_fixed, new_capacities_keep)
-                                node.update(X_int, LB)
-                                # If LB = UB, don't add it!
-                                if node.UB - node.LB > 1:
-                                    heappush(queue, node)
+                                node = Node(X_frac, UB, parent_node.depth + 1, self.node_selection_strategy, new_fixed,
+                                            new_capacities_keep)
+                                print(node)
+                                heappush(queue, node)
 
-                                if verbose >= 1:
+                                if verbose >= 2:
                                     print("\tNode added to the queue")
 
                                 # If also the lowerbound is higher:
@@ -237,18 +261,92 @@ class BranchAndBound():
                                     self.GLB = LB
                                     self.GLB_argmin = X_int
                             else:
-                                if verbose >= 1:
+                                if verbose >= 2:
                                     print("\tPruned by bound")
                     else:
-                        if verbose >= 1:
+                        if verbose >= 2:
                             print("\tPruned by infeasibility (linear program infeasible)")
-                else:
-                    if verbose >= 1:
-                        print("\tPruned by infeasibilty (negative capacity)")
-                #print(" ")
+
+            else:
+                for q in range(self.n_knapsacks + 1):
+                    if verbose >= 2:
+                        print(f"Fixing job {j} on knapsack {q}")
+                    # Fix the item j on the knapsack i
+                    new_fixed = parent_node.fixed + [(j, q)]
+
+                    # Get the capacities
+                    new_capacities = capacities_parent_node.copy()
+                    if q < self.n_knapsacks:
+                        new_capacities[q] -= weights[j]
+
+
+                    if min(new_capacities) > 0: # Else --> Prune by infeasibility
+                        new_capacities_keep = new_capacities.copy()
+                        X_frac, UB, feas = self.upper_bound(profits.copy(), weights.copy(), new_capacities, new_fixed)
+
+                        if feas: # Else --> Prune by infeasibility
+                            # Add the fixed to X_frac
+                            for (j, i) in new_fixed:
+                                if i < self.n_knapsacks:
+                                    X_frac[(j, i)] = 1
+                                    UB += profits[j]
+
+                            if is_integer_sol(X_frac):
+                                if UB > self.GLB:
+                                    self.GLB = UB
+                                    self.GLB_argmin = X_frac
+                                # Else, prune by integrality, so don't do anything
+                            else:
+                                # Do the rounding!
+                                X_int, LB = self.rounding(X_frac, new_capacities_keep, new_fixed) # This is just partial, now you have to complete everything with the fixed
+                                for (j, i) in new_fixed:
+                                    if i < self.n_knapsacks:
+                                        X_int[(j, i)] = 1
+                                        LB += profits[j]
+
+
+                                # if verbose >= 1:
+                                #     print(f"\twith new capacities {new_capacities_keep} --> UB = {UB}, LB = {LB}")
+
+                                # Now we have everything in place, do we add this node?
+                                if UB >= self.GLB:
+                                    # Add it to the queue
+                                    # X_frac, UB, depth, strategy, fixed, capacities
+                                    node = Node(X_frac, UB, parent_node.depth + 1, self.node_selection_strategy, new_fixed, new_capacities_keep)
+                                    node.update(X_int, LB)
+                                    if verbose >= 2:
+                                        print(node)
+                                    heappush(queue, node)
+
+                                    if verbose >= 2:
+                                        print("\tNode added to the queue")
+
+                                    # If also the lowerbound is higher:
+                                    if LB > self.GLB:
+                                        if verbose >= 0.5:
+                                            old_lb = self.GLB
+                                            print(f"!!! Improved global lowerbound: {old_lb} --> {LB}")
+                                        self.GLB = LB
+                                        self.GLB_argmin = X_int
+                                else:
+                                    if verbose >= 2:
+                                        print("\tPruned by bound")
+                        else:
+                            if verbose >= 2:
+                                print("\tPruned by infeasibility (linear program infeasible)")
+                    else:
+                        if verbose >= 2:
+                            print("\tPruned by infeasibilty (negative capacity)")
+            if verbose >= 2:
+                print("Nodes explored:", nodes_explored)
+                print("Queue length = ", len(queue))
+
+            if nodes_explored > self.MAX_NODES:
+                return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth, False
 
 
 
-        return self.GLB, X_int, self.GUB, time.time() - start
+
+        return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
 
 

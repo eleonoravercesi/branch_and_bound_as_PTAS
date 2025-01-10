@@ -1,58 +1,51 @@
-'''
-Experiments for the multidimensional knapsack
-'''
-import numpy as np
-from BeB.multi_knapsack import BranchAndBound
+import  numpy as np
 from exact_models.multi_knapsack import solve_multi_knapsack
+from BeB.multi_knapsack import BranchAndBound
+from itertools import product
+from math import ceil
+
+# items_knapsack_list = [(10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (100, 2), (100, 5), (100, 10), (100, 20)]
+#
+# alpha_list = [0.5, 0.8, 0.95, 0.97]
+# node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
+# branching_rule_list = ["critical_element", "profit_per_weight_ratio", "kolasar_rule"]
+#
+# tests_to_do = product(alpha_list, node_selection_strategy_list, branching_rule_list)
+# tests_to_do = list(tests_to_do)
+#
+# seed_min = 0
+# seed_max = 29
+
+items_knapsack_list = [(10, 2)]
+seed_min = 3
+seed_max = 3
+tests_to_do = [(0.97,"depth_first",  "critical_element")]
+
+for n_items, n_knapsacks in items_knapsack_list:
+    print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
+    for seed in range(seed_min, seed_max + 1):
+        # Set the seed
+        np.random.seed(seed)
+
+        # Define profits and weights
+        profits = np.random.randint(1, 20, (n_items, )).tolist()
+        weights = np.random.randint(1, 20, (n_items, )).tolist()
+
+        # Define capacities
+        w_sum = sum(weights)
+        c_max = ceil(n_knapsacks * w_sum / 2)
+
+        capacities = np.random.randint(min(weights), c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
+
+        OPT_exact, _, status, runtime = solve_multi_knapsack(profits.copy(), weights.copy(), capacities.copy())
+
+        for alpha, node_selection_strategy, branching_rule in tests_to_do:
+            print("Doing", alpha, node_selection_strategy, branching_rule)
+            beb = BranchAndBound(node_selection_strategy, "dantzig_upper_bound", branching_rule, "martello_toth_rule", alpha)
+            # self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
+            best_solution, X_int, UB, runtime, nodes_explored, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), verbose=2)
+
+        # Logging
+        print(f"Done with seed {seed}", flush=True)
 
 
-'''
-Test instance done by hand as well
-n_knapsacks = 2
-n_items = 5
-
-profits = [2, 4,9,12,10]
-weights = [1, 2,3,4,5]
-capacities = [5,6]
-
-OK
-
-seed    |   knapsack  | items | status  |   alpha   |
------------------------------------------------------
-43          2           10      OK          1
-16463       10          20      OK          1
-4164        3           10      OK          1
-1-42        3           15      OK          1
-43          3           15      OK          1
-44 - 100    3           15      OK          1
-43636       5           20      OK          0.9
-43636       5           20      OK          0.95
-6106        10          50      OK          0.95
-6106        10          50                  0.99
-'''
-
-seed_min = 6106
-seed_max = 6106
-alpha = 0.99
-
-for seed in range(seed_min, seed_max + 1):
-    print(f"SEED {seed}")
-    np.random.seed(seed)
-    n_knapsack = 10
-    n_items = 50
-    profits = np.random.randint(1, 10, (n_items,)).tolist()
-    weights = np.random.randint(1, 10, (n_items,)).tolist()
-    capacities = np.random.randint(max(weights), 2*max(weights), (n_knapsack,)).tolist()
-
-
-    total_profit, assignment, status, runtime = solve_multi_knapsack(profits, weights, capacities)
-
-
-    beb = BranchAndBound("greatest_upper_bound", "dantzig_upper_bound", "critical_element", "martello_toth_rule", alpha)
-
-    LB, X_int, UB, runtime = beb.solve(profits, weights, capacities, verbose = 1)
-
-    print(f"Total profit (exact): {total_profit}")
-    print(f"Our algorithm: {LB}, with an upperbound of {UB}")
-    print("\t", X_int)
-    #assert abs(LB - total_profit) <= 1e-6

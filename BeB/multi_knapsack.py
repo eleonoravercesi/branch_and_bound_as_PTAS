@@ -70,12 +70,16 @@ class BranchAndBound():
             return dantzig_upper_bound(profits, weights, capacities, fixed)
 
     def branching_variable(self, X_frac):
+        # Get all the fractional items
+        fractional_items = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
+        fractional_items = list(set(fractional_items))
+        assert len(fractional_items) <= self.n_knapsacks, "The number of fractional items is greater than the number of knapsacks"
         if self.branching_rule_strategy == "critical_element":
-            # Get all the fractional items
-            fractional_items = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
-            fractional_items = list(set(fractional_items))
-            assert len(fractional_items) <= self.n_knapsacks, "The number of fractional items is greater than the number of knapsacks"
+            # Branch on the item with the highest profit
             return max(fractional_items, key=lambda j: self.profits[j])
+        if self.branching_rule_strategy == "profit_per_weight_ratio":
+            # Branch on the item with the highest ratio profit/weight
+            return max(fractional_items, key=lambda j: self.profits[j]/self.weights[j])
 
     def rounding(self, X_frac, capacities, new_fixed):
         """
@@ -104,7 +108,7 @@ class BranchAndBound():
 
     def stopping_criterion(self):
         if self.alpha == 1:
-            return self.GUB - self.GLB >= 1
+            return self.GUB - self.GLB >= 1 # Enough because weights an profits are integer
         else:
             return self.GLB / self.GUB < self.alpha
 
@@ -155,18 +159,20 @@ class BranchAndBound():
         heappush(queue, root_node)
 
         if verbose >= 0.5:
-            print("UB = ", UB, "LB = ", LB, flush = True)
+            print("Root node: UB = ", UB, "LB = ", LB, flush = True)
 
         nodes_explored = 1
         while self.stopping_criterion():
             parent_node = heappop(queue) # Get the node with the highest UB
-            self.GUB = parent_node.UB
+            if self.node_selection_strategy == "greatest_upper_bound":
+                self.GUB = parent_node.UB
             nodes_explored += 1
             if verbose >= 1:
                 print(f"Exploring node {nodes_explored - 1}")
+                print(f"Node UB: {parent_node.UB}, Node LB: {parent_node.LB}, path of the node: {parent_node.fixed}")
 
             # Branching
-            j = self.branching_variable(parent_node.X_frac)
+            j = self.branching_variable(parent_node.X_frac) # Node 12 issue :O
 
             capacities_parent_node =  parent_node.capacities.copy()
 
@@ -207,8 +213,8 @@ class BranchAndBound():
                                     LB += profits[j]
 
 
-                            if verbose >= 1:
-                                print(f"\twith new capacities {new_capacities_keep} --> UB = {UB}, LB = {LB}")
+                            # if verbose >= 1:
+                            #     print(f"\twith new capacities {new_capacities_keep} --> UB = {UB}, LB = {LB}")
 
                             # Now we have everything in place, do we add this node?
                             if UB >= self.GLB:
@@ -227,7 +233,7 @@ class BranchAndBound():
                                 if LB > self.GLB:
                                     if verbose >= 0.5:
                                         old_lb = self.GLB
-                                        print(f"Improved global lowerbound: {old_lb} --> {LB}")
+                                        print(f"!!! Improved global lowerbound: {old_lb} --> {LB}")
                                     self.GLB = LB
                                     self.GLB_argmin = X_int
                             else:

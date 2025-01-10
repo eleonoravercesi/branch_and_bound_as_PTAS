@@ -50,7 +50,7 @@ for seed in range(seed_min, seed_max + 1):
 
     beb = BranchAndBound("greatest_upper_bound", "dantzig_upper_bound", "critical_element", "martello_toth_rule", alpha)
 
-    LB, X_int, UB, runtime = beb.solve(profits, weights, capacities, verbose = 0.5)
+    LB, X_int, UB, runtime = beb.solve(profits, weights, capacities, verbose = 1)
 
     print(f"Total profit (exact): {total_profit}")
     print(f"Our algorithm: {LB}, with an upperbound of {UB}")

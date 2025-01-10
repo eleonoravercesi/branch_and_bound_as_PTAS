@@ -10,8 +10,6 @@ def dantzig_upper_bound(profits, weights, capacities, fixed):
     # Prepocessing: the fixed items (j, i) are item j fixed on knapsack i. We will reduce the capacities of the knapsacks acordingly.
     fixed_items = []
     for (j, i) in fixed:
-        weights[j] = 0
-        profits[j] = 0
         fixed_items.append(j)
 
     # Sort the elements decreasingly
@@ -28,8 +26,6 @@ def dantzig_upper_bound(profits, weights, capacities, fixed):
     sorted_items = list(sorted_items.keys())
 
     X_frac = {}
-
-
 
     while current_item_idx < len(not_fixed_items) and current_knapsack < n_knapsacks:
 

@@ -4,7 +4,7 @@ from BeB.multi_knapsack import BranchAndBound
 from itertools import product
 from math import ceil
 
-# items_knapsack_list = [(10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (100, 2), (100, 5), (100, 10), (100, 20)]
+# items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (100, 2), (100, 5), (100, 10), (100, 20)]
 #
 # alpha_list = [0.5, 0.8, 0.95, 0.97]
 # node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
@@ -16,10 +16,10 @@ from math import ceil
 # seed_min = 0
 # seed_max = 29
 
-items_knapsack_list = [(10, 2)]
-seed_min = 3
-seed_max = 3
-tests_to_do = [(0.97,"depth_first",  "critical_element")]
+items_knapsack_list = [(5, 2)]
+seed_min = 1
+seed_max = 1 # Bad seed = 1 with 5, 2
+tests_to_do = [(0.97, "greatest_upper_bound",  "kolasar_rule")]
 
 for n_items, n_knapsacks in items_knapsack_list:
     print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
@@ -31,11 +31,16 @@ for n_items, n_knapsacks in items_knapsack_list:
         profits = np.random.randint(1, 20, (n_items, )).tolist()
         weights = np.random.randint(1, 20, (n_items, )).tolist()
 
+        print(profits)
+        print(weights)
+
         # Define capacities
         w_sum = sum(weights)
         c_max = ceil(n_knapsacks * w_sum / 2)
 
         capacities = np.random.randint(min(weights), c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
+        print(capacities)
+
 
         OPT_exact, _, status, runtime = solve_multi_knapsack(profits.copy(), weights.copy(), capacities.copy())
 
@@ -48,4 +53,4 @@ for n_items, n_knapsacks in items_knapsack_list:
         # Logging
         print(f"Done with seed {seed}", flush=True)
 
-
+        print(OPT_exact, best_solution)

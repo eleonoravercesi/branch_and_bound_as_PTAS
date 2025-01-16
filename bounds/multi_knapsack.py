@@ -12,22 +12,14 @@ def dantzig_upper_bound(profits, weights, capacities, fixed, verbose=False):
 
     temp_capacities, temp_weights = capacities.copy(), weights.copy()
 
-    # Step 1: get the not fixed items # TODO sort the item at the very beginning
+    # Step 1: get the not fixed items
     fixed_items = []
     for (j, i) in fixed:
         fixed_items.append(j)
 
-    not_fixed_items = [j for j in range(n_items) if j not in fixed_items]
+    # Items are sorted in the main
+    sorted_items = [j for j in range(n_items) if j not in fixed_items]
 
-    # Step 2: sort the item
-    sorted_items = {}
-    for j in not_fixed_items:
-        sorted_items[j] = profits[j] / temp_weights[j]
-
-    sorted_items = dict(sorted(sorted_items.items(), key=lambda item: item[1], reverse=True))
-
-    # Define some variables you may need
-    sorted_items = list(sorted_items)
     X_frac = {}
 
     while max(temp_capacities) > 0 and len(sorted_items) > 0:

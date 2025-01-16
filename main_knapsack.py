@@ -16,10 +16,10 @@ from math import ceil
 # seed_min = 0
 # seed_max = 29
 
-items_knapsack_list = [(5, 2)]
-seed_min = 2
-seed_max = seed_min # Bad seed = 1 with 5, 2
-tests_to_do = [(0.97, "breadth_first",  "profit_per_weight_ratio")]
+items_knapsack_list = [(50, 2)]
+seed_min = 1
+seed_max = 1  # Bad seed = 1 with 5, 2
+tests_to_do = [(0.97, "depth_first",  "kolasar_rule")]
 
 for n_items, n_knapsacks in items_knapsack_list:
     print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
@@ -48,7 +48,7 @@ for n_items, n_knapsacks in items_knapsack_list:
             print("Doing", alpha, node_selection_strategy, branching_rule)
             beb = BranchAndBound(node_selection_strategy, "dantzig_upper_bound", branching_rule, "martello_toth_rule", alpha)
             # self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
-            best_solution, X_int, UB, runtime, nodes_explored, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), verbose=2)
+            best_solution, X_int, UB, runtime, nodes_explored, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), verbose=1)
 
         # Logging
         print(f"Done with seed {seed}", flush=True)

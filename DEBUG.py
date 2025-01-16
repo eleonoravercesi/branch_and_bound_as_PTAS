@@ -38,7 +38,6 @@ seed    |   knapsack  | items | status  |   alpha   |
 '''
 
 
-
 n_knapsacks = 2
 n_items = 0
 

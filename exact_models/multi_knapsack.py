@@ -1,7 +1,7 @@
 from ortools.linear_solver import pywraplp
 
 
-def solve_multi_knapsack(profits, weights, capacities, verbose = False):
+def solve_multi_knapsack(profits, weights, capacities, verbose=False):
     """
     Solves the Multi-Knapsack Problem using OR-Tools with SCIP backend.
 
@@ -13,8 +13,8 @@ def solve_multi_knapsack(profits, weights, capacities, verbose = False):
     Returns:
         dict: Solution with assigned items and total profit.
     """
-    num_items = len(profits) # Number of items, indexed with j
-    num_knapsacks = len(capacities) # Number of knapsacks, indexed with i
+    num_items = len(profits)  # Number of items, indexed with j
+    num_knapsacks = len(capacities)  # Number of knapsacks, indexed with i
 
     # Initialize OR-Tools Solver with SCIP backend
     solver = pywraplp.Solver.CreateSolver('SCIP')

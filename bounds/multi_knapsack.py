@@ -1,7 +1,7 @@
 from pyscipopt import Model
 
 
-def dantzig_upper_bound(profits, weights, capacities, fixed, verbose = False):
+def dantzig_upper_bound(profits, weights, capacities, fixed, verbose=False):
     """
     Compute the upper bound of the multi knapsack using the algorithm of George Dantzig (Discrete variable extremum points, 1957)
     - The capacities are already reduced
@@ -9,6 +9,8 @@ def dantzig_upper_bound(profits, weights, capacities, fixed, verbose = False):
     # Step 0: initialize some quantities
     n_knapsacks = len(capacities)
     n_items = len(profits)
+
+    temp_capacities, temp_weights = capacities.copy(), weights.copy()
 
     # Step 1: get the not fixed items # TODO sort the item at the very beginning
     fixed_items = []
@@ -20,7 +22,7 @@ def dantzig_upper_bound(profits, weights, capacities, fixed, verbose = False):
     # Step 2: sort the item
     sorted_items = {}
     for j in not_fixed_items:
-        sorted_items[j] = profits[j] / weights[j]
+        sorted_items[j] = profits[j] / temp_weights[j]
 
     sorted_items = dict(sorted(sorted_items.items(), key=lambda item: item[1], reverse=True))
 
@@ -28,42 +30,42 @@ def dantzig_upper_bound(profits, weights, capacities, fixed, verbose = False):
     sorted_items = list(sorted_items)
     X_frac = {}
 
-    while max(capacities) > 0 and len(sorted_items) > 0:
+    while max(temp_capacities) > 0 and len(sorted_items) > 0:
         # Pop the first item from the list
         j_to_fix = sorted_items.pop(0)
-        starting_weight = weights[j_to_fix]
+        starting_weight = temp_weights[j_to_fix]
 
         already_assigned_partially = False
 
         # Create a list where the item r sum up the capacities until r
-        capacities_sum = [sum(capacities[:r + 1]) for r in range(len(capacities))]
+        capacities_sum = [sum(temp_capacities[:r + 1]) for r in range(len(temp_capacities))]
 
         # Get the minimum index for with weights[j_to_fix] is smaller than capacities sum
-        r_list = [r for r in range(n_knapsacks) if capacities_sum[r] >= weights[j_to_fix]]
+        r_list = [r for r in range(n_knapsacks) if capacities_sum[r] >= temp_weights[j_to_fix]]
         if len(r_list) > 0:
             r_min = min(r_list)
 
             for i in range(r_min + 1):
-                if starting_weight <= capacities[i] and not already_assigned_partially:
+                if starting_weight <= temp_capacities[i] and not already_assigned_partially:
                     # Assign it at the most (integrally)
                     X_frac[(j_to_fix, i)] = 1
-                    capacities[i] = capacities[i] -  starting_weight
-                    weights[j_to_fix] = weights[j_to_fix] -  starting_weight # Done
+                    temp_capacities[i] = temp_capacities[i] - starting_weight
+                    temp_weights[j_to_fix] = temp_weights[j_to_fix] - starting_weight  # Done
                 else:
-                    q = min(capacities[i], weights[j_to_fix]) / starting_weight
+                    q = min(temp_capacities[i], temp_weights[j_to_fix]) / starting_weight
                     X_frac[(j_to_fix, i)] = q
-                    capacities[i] = capacities[i] - q * starting_weight
-                    weights[j_to_fix] = weights[j_to_fix] - q * starting_weight
+                    temp_capacities[i] = temp_capacities[i] - q * starting_weight
+                    temp_weights[j_to_fix] = temp_weights[j_to_fix] - q * starting_weight
                     already_assigned_partially = True
 
         else:
             # You have done! Just fit the last element
-            while max(capacities) > 0:
+            while max(temp_capacities) > 0:
                 for i in range(n_knapsacks):
-                    if capacities[i] > 0:
-                        q = capacities[i] / weights[j_to_fix]
+                    if temp_capacities[i] > 0:
+                        q = temp_capacities[i] / temp_weights[j_to_fix]
                         X_frac[(j_to_fix, i)] = q
-                        capacities[i] = 0
+                        temp_capacities[i] = 0
         if verbose:
             print(X_frac)
 
@@ -130,7 +132,3 @@ def dantzig_upper_bound_linear_relaxation(profits, weights, capacities, fixed):
         return solution, total_profit, True
     else:
         return None, None, False
-
-
-
-

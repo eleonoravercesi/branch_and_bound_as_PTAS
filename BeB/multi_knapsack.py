@@ -199,6 +199,8 @@ class BranchAndBound():
                 raise Exception(f"Queue is empty, GUB = {self.GUB}, GLB = {self.GLB}")
 
             parent_node = heappop(queue) # Get the node with the highest UB
+            # Check if the solution is integrak, if it is the case, discard it, else, continue
+            # TODO 
 
             # Update the left turn and max_depth if needed
             left_turns = max(left_turns, len([k for k in parent_node.fixed if k[1] < self.n_knapsacks]))
@@ -246,8 +248,6 @@ class BranchAndBound():
                     new_capacities_keep = new_capacities.copy()
                     X_frac, UB, feas = self.upper_bound(profits.copy(), weights.copy(), new_capacities, new_fixed)
 
-
-
                     if feas and len(X_frac) > 0: # Else --> Prune by infeasibility
                         # Add the fixed to X_frac
                         for (k, i) in new_fixed:
@@ -265,7 +265,11 @@ class BranchAndBound():
                                 self.GUB = max(tentative_UB, UB)
                                 if not self.stopping_criterion():
                                     return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth, True
-                            # Else, prune by integrality, so don't do anything
+                            else:
+                                # Else, prune by integrality, so don't do anything
+                                if verbose >= 2: # TODO: add the node to the queue
+                                    print(f"\tPruned by integrality, X_f = {X_frac}")
+
                         else:
                             # Do the rounding!
                             X_int, LB = self.rounding(X_frac, new_capacities_keep, new_fixed) # This is just partial, now you have to complete everything with the fixed

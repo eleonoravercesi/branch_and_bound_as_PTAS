@@ -5,7 +5,7 @@ from itertools import product
 from math import ceil
 import pandas as pd
 
-items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (100, 2), (100, 5), (100, 10), (100, 20)]
+items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10), (100, 20)]
 
 alpha_list = [0.5, 0.8, 0.95, 0.97]
 node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
@@ -23,7 +23,7 @@ test_type = "random_instances"
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["seed", "n_knapsacks", "n_items", "alpha", "branching_rule", "node_selection",
-                           "best_solution", "runtime", "depth", "number_of_left_turns", "optimal_solution"])
+                           "best_solution", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "optimal_solution"])
 
 
 for n_items, n_knapsacks in items_knapsack_list:
@@ -75,10 +75,10 @@ for n_items, n_knapsacks in items_knapsack_list:
             # Logging
             print(f"Done with seed {seed}", flush=True)
 
-            df = df._append({"seed": seed, "n_knapsacks": n_knapsacks, "n_items": n_items, "alpha": alpha,
-                            "branching_rule": branching_rule, "node_selection": node_selection_strategy,
-                            "best_solution": best_solution, "runtime": runtime, "depth": max_depth,
-                            "number_of_left_turns": left_turns, "optimal_solution": OPT_exact}, ignore_index=True)
+            df = df._append(dict(seed=seed, n_knapsacks=n_knapsacks, n_items=n_items, alpha=alpha, branching_rule=branching_rule,
+                                 node_selection=node_selection_strategy, best_solution=best_solution, runtime=runtime,
+                                 depth=max_depth, number_of_left_turns=left_turns, nodes_explored=nodes_explored, terminate=terminate,
+                                 optimal_solution=OPT_exact), ignore_index=True)
 
             df.to_csv(f"./output/results_{test_problem}_{test_type}.csv", index=False)
 

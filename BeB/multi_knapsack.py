@@ -129,7 +129,7 @@ class BranchAndBound():
         else:
             return self.GLB / self.GUB < self.alpha
 
-    def solve(self, profits, weights, capacities, verbose=0):
+    def solve(self, profits, weights, capacities, verbose=0, opt=None):
         # Save the data
         self.profits = profits
         self.weights = weights
@@ -144,7 +144,7 @@ class BranchAndBound():
 
         self.verbose = verbose
         self.TOL = 1e-6
-        self.MAX_NODES = 1e6
+        self.MAX_NODES = 1e4
 
         start = time.time()
 
@@ -166,7 +166,7 @@ class BranchAndBound():
             self.GLB_argmin = X_frac
             if verbose >= 1:
                 print("UB = ", UB, "LB = ", UB, "--> Solved at the root node", flush=True)
-            return UB, X_frac, UB, time.time() - start, 0, 0, 0, True
+            return UB, X_frac, UB, time.time() - start, 0, 0, 0, 0, True
 
         # If this is not the case, round the solution
         X_int, LB = self.rounding(X_frac, self.global_capacities, fixed_root)
@@ -188,6 +188,8 @@ class BranchAndBound():
         nodes_explored = 1  # Number of nodes explored
         left_turns = 0
         max_depth = 0
+        nodes_opt = -1 # No optimal solution
+        not_yet_opt = True # Of course it's not optimal...
 
         while queue:
             # Get the next node
@@ -316,13 +318,25 @@ class BranchAndBound():
             # an integral node that we did not add to the queue. Then, the real GUB is GLB.
             self.GUB = max(self.GLB, max(node.UB for node in queue) if queue else self.GLB)
 
-            # We stop if the stopping criterion holds, or if we explored too many nodes.
-            if nodes_explored > self.MAX_NODES or not self.stopping_criterion():
-                return (self.GLB, self.GLB_argmin, self.GUB, time.time() - start,
-                        nodes_explored, left_turns, max_depth, False)
+            """
+            At each iteration, check if we have actually reached the optimal solution.
+            """
+            if abs(self.GLB - opt) <= self.TOL and not_yet_opt:
+                nodes_opt = nodes_explored
+                not_yet_opt = False
 
-        """
+            # We stop if the stopping criterion holds, or if we explored too many nodes.
+            if (nodes_explored > self.MAX_NODES):
+                return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, False # Not terminating because of the number of nodes
+
+
+            if not self.stopping_criterion():
+                return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, True # Terminating because of the stopping criterion
+
+
+        """ 
         At this point, the queue is empty. 
         There is no more upper bound, so the best integer solution (self.GLB) is optimal.
         """
-        return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
+        nodes_opt = nodes_explored
+        return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth,  True

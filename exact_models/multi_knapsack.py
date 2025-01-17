@@ -1,4 +1,5 @@
 from ortools.linear_solver import pywraplp
+from pyscipopt import Model, SCIP_PARAMSETTING
 
 
 def solve_multi_knapsack(profits, weights, capacities, verbose=False):
@@ -57,3 +58,50 @@ def solve_multi_knapsack(profits, weights, capacities, verbose=False):
     else:
         print('No optimal solution found.')
         return None, None, status, runtime
+
+def SCIP(profits, weights, capacities):
+    """
+    Compute an optimal solution using SCIP B&B with no cutting plane and presolve
+    """
+
+    # Step 0: initialize some quantities
+    n_knapsacks = len(capacities)
+    n_items = len(profits)
+
+    # Initialize the model
+    model = Model("Knapsack")
+
+    # Configure simple Branch-and-Bound
+    model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
+    model.setIntParam("separating/maxrounds", 0)  # Disable cutting planes
+    model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
+    model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
+    model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
+
+    x = dict()
+    for j in range(n_items):
+        for i in range(n_knapsacks):
+            # Binary variables
+            x[(j, i)] = model.addVar(name=f"x_{(j, i)}", lb=0.0, ub=1.0, vtype="B")
+
+    # Each item must be assigned to at most one knapsack
+    for j in range(n_items):
+        model.addCons(sum(x[(j, i)] for i in range(n_knapsacks)) <= 1)
+
+    # Add capacity constraint: sum(weights[j] * x[j]) <= capacity[i]
+    for i in range(n_knapsacks):
+        model.addCons(sum(weights[j] * x[(j, i)] for j in range(n_items)) <= capacities[i])
+
+    # Set the objective
+    model.setObjective(sum(profits[j] * x[(j, i)] for i in range(n_knapsacks) for j in range(n_items)), sense="maximize")
+
+    # Optimize the model
+    model.optimize()
+
+    # Extract the solution
+    if model.getStatus() == "optimal":
+        total_profit = model.getObjVal()
+        solution = {(j, i): model.getVal(x[(j, i)]) for j in range(n_items) for i in range(n_knapsacks) if model.getVal(x[(j, i)]) > 0}
+        return solution, total_profit, True
+    else:
+        return None, None, False

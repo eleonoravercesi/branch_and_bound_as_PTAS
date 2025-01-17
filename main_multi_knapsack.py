@@ -5,22 +5,25 @@ from itertools import product
 from math import ceil
 import pandas as pd
 
-# items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10), (100, 20)]
-#
-# alpha_list = [0.5, 0.8, 0.95, 0.97]
-# node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
-# branching_rule_list = ["critical_element", "profit_per_weight_ratio", "kolasar_rule"]
-#
-# tests_to_do = product(alpha_list, node_selection_strategy_list, branching_rule_list)
-# tests_to_do = list(tests_to_do)
-#
-# seed_min = 0
-# seed_max = 29
+items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10), (100, 20)]
 
-items_knapsack_list = [(50, 5)]
-seed_min = 22
-seed_max = seed_min
-tests_to_do = [(0.97, "breadth_first", "kolasar_rule")]
+alpha_list = [0.5, 0.8, 0.95, 0.97]
+node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
+branching_rule_list = ["critical_element", "profit_per_weight_ratio", "kolasar_rule"]
+
+tests_to_do = product(alpha_list, node_selection_strategy_list, branching_rule_list)
+tests_to_do = list(tests_to_do)
+
+seed_min = 0
+seed_max = 29
+
+'''
+Single test
+'''
+# items_knapsack_list = [(50, 5)]
+# seed_min = 0
+# seed_max = seed_min
+# tests_to_do = [(0.97, "breadth_first", "kolasar_rule")]
 
 
 
@@ -30,7 +33,7 @@ test_type = "random_instances"
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["seed", "n_knapsacks", "n_items", "alpha", "branching_rule", "node_selection",
-                           "best_solution", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "optimal_solution"])
+                           "best_solution", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "number_of_nodes_for_optimality", "optimal_solution"])
 
 
 for n_items, n_knapsacks in items_knapsack_list:
@@ -60,10 +63,12 @@ for n_items, n_knapsacks in items_knapsack_list:
         weights = [weights[j] for j in sorted_items]
 
         # Define capacities
+        c_min = min(weights)
         w_sum = sum(weights)
-        c_max = ceil(n_knapsacks * w_sum / 2)
+        c_max = ceil(w_sum / n_knapsacks) - c_min # Half of the items can fit in on average
 
-        capacities = np.random.randint(min(weights), c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
+
+        capacities = np.random.randint(c_min, c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
         print(capacities)
 
 
@@ -73,7 +78,7 @@ for n_items, n_knapsacks in items_knapsack_list:
             print("Doing", alpha, node_selection_strategy, branching_rule)
             beb = BranchAndBound(node_selection_strategy, "dantzig_upper_bound", branching_rule, "martello_toth_rule", alpha)
             # self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
-            best_solution, X_int, UB, runtime, nodes_explored, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), verbose=0)
+            best_solution, X_int, UB, runtime, nodes_explored, opt_node, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), opt=OPT_exact, verbose=0)
 
 
             print(OPT_exact, best_solution)
@@ -84,8 +89,7 @@ for n_items, n_knapsacks in items_knapsack_list:
 
             df = df._append(dict(seed=seed, n_knapsacks=n_knapsacks, n_items=n_items, alpha=alpha, branching_rule=branching_rule,
                                  node_selection=node_selection_strategy, best_solution=best_solution, runtime=runtime,
-                                 depth=max_depth, number_of_left_turns=left_turns, nodes_explored=nodes_explored, terminate=terminate,
+                                 depth=max_depth, number_of_left_turns=left_turns, nodes_explored=nodes_explored, terminate=terminate, number_of_nodes_for_optimality=opt_node,
                                  optimal_solution=OPT_exact), ignore_index=True)
 
             df.to_csv(f"./output/results_{test_problem}_{test_type}.csv", index=False)
-

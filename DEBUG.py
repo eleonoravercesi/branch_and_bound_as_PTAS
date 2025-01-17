@@ -1,71 +1,58 @@
-'''
-Experiments for the multidimensional knapsack
-'''
+import pandas as pd
 import numpy as np
-from BeB.multi_knapsack import BranchAndBound
-from exact_models.multi_knapsack import solve_multi_knapsack
-from bounds.multi_knapsack import dantzig_upper_bound, dantzig_upper_bound_linear_relaxation
+from math import ceil
+from exact_models.multi_knapsack import SCIP
 
-#
-# # Test instance done by hand as well
-# n_knapsacks = 2
-# n_items = 5
-#
-# profits = [2, 4,9,12,10]
-# weights = [1, 2,3,4,5]
-# capacities = [5,6]
-#
-# alpha = 1
+items_knapsack_list = [(50, 5)]
+#seed_min = 5016165 # 0 is trouble, let's try 5016165
+seed_min = 0
+seed_max = seed_min
+tests_to_do = [(0.97, "breadth_first", "kolasar_rule")]
 
 
-'''
 
-seed    |   knapsack  | items | status  |   alpha   |
------------------------------------------------------
-43          2           10      OK          1
-16463       10          20      OK          1
-4164        3           10      OK          1
-1-42        3           15      OK          1
-43          3           15      OK          1
-44 - 100    3           15      OK          1
-43636       5           20      OK          0.9
-43636       5           20      OK          0.95
-6106        10          50      OK          0.95
-6106        10          50      OK          0.98
-41655652    10          50      OK          0.98
-41655652    10          50      --          0.99
-2646515626  20          100     --         0.90
-'''
+# Set up the things you want to record
+test_problem = "multiknapsack"
+test_type = "random_instances"
+
+# Create a pandas data frame to store the results
+df = pd.DataFrame(columns=["seed", "n_knapsacks", "n_items", "alpha", "branching_rule", "node_selection",
+                           "best_solution", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "optimal_solution"])
 
 
-n_knapsacks = 2
-n_items = 0
+for n_items, n_knapsacks in items_knapsack_list:
+    print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
+    for seed in range(seed_min, seed_max + 1):
+        # Set the seed
+        np.random.seed(seed)
 
-out = dantzig_upper_bound([], [], [10, 10], [])
+        # Define profits and weights
+        profits = np.random.randint(1, 20, (n_items, )).tolist()
+        weights = np.random.randint(1, 20, (n_items, )).tolist()
+
+        print(profits)
+        print(weights)
+
+        # Sort the items once for all
+        # Step 2: sort the item
+        sorted_items = {}
+        for j in range(n_items):
+            sorted_items[j] = profits[j] / weights[j]
+
+        sorted_items = dict(sorted(sorted_items.items(), key=lambda item: item[1], reverse=True))
+
+        sorted_items = list(sorted_items)
+
+        profits = [profits[j] for j in sorted_items]
+        weights = [weights[j] for j in sorted_items]
+
+        # Define capacities
+        c_min = min(weights)
+        w_sum = sum(weights)
+        c_max = ceil(w_sum / n_knapsacks) - c_min # Half of the items can fit in on average
 
 
-# seed_min = 2646515626
-# seed_max = 2646515626
-# alpha = 0.90
-#
-# for seed in range(seed_min, seed_max + 1):
-#     print(f"SEED {seed}")
-#     np.random.seed(seed)
-#     n_knapsack = 20
-#     n_items = 100
-#     profits = np.random.randint(1, 10, (n_items,)).tolist()
-#     weights = np.random.randint(1, 10, (n_items,)).tolist()
-#
-#     capacities = np.random.randint(max(weights), 2*max(weights), (n_knapsack,)).tolist()
-#
-#
-#     total_profit, assignment, status, runtime = solve_multi_knapsack(profits.copy(), weights.copy(), capacities.copy())
-#     print(f"Total profit (exact): {total_profit}")
-#
-# beb = BranchAndBound("greatest_upper_bound", "dantzig_upper_bound", "critical_element", "martello_toth_rule", alpha)
-# LB, X_int, UB, runtime = beb.solve(profits.copy(), weights.copy(), capacities.copy(), verbose = 0)
-#
-# print(f"Our algorithm: {LB}, with an upperbound of {UB}")
-# print("\t", X_int)
-# print("Runtime heuristic: ", {runtime})
-# #assert abs(LB - total_profit) <= 1e-6
+        capacities = np.random.randint(c_min, c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
+        print(capacities)
+
+        out = SCIP(profits.copy(), weights.copy(), capacities.copy())

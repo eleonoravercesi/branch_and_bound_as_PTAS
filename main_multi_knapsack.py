@@ -5,7 +5,7 @@ from itertools import product
 from math import ceil
 import pandas as pd
 
-items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10), (100, 20)]
+items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10)]
 
 alpha_list = [0.5, 0.8, 0.95, 0.97]
 node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]

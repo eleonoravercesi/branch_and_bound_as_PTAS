@@ -327,10 +327,14 @@ class BranchAndBound():
 
             # We stop if the stopping criterion holds, or if we explored too many nodes.
             if (nodes_explored > self.MAX_NODES):
+                if not_yet_opt:
+                    nodes_opt = nodes_explored
                 return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, False # Not terminating because of the number of nodes
 
 
             if not self.stopping_criterion():
+                if not_yet_opt:
+                    nodes_opt = nodes_explored
                 return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, True # Terminating because of the stopping criterion
 
 

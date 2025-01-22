@@ -2,7 +2,7 @@ from ortools.linear_solver import pywraplp
 from pyscipopt import Model, SCIP_PARAMSETTING
 
 
-def solve_unrelated_job_scheduling(completion_times, verbose = False):
+def solve_unrelated_job_scheduling(completion_times, verbose=False):
     """
         Solves the Unrelated Job Scheduling problem using OR-Tools with SCIP backend.
 
@@ -112,4 +112,3 @@ def SCIP(completion_times, verbose=False):
         return solution, model.getVal(), True
     else:
         return None, None, False  # Let's keep it, but it's always feasible
-

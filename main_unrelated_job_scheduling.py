@@ -39,7 +39,6 @@ for n_items, n_knapsacks in job_machines_list:
         # Define the completion times
         completion_times = np.random.randint(1, 100, (n_items, n_knapsacks)).tolist()
 
-
         OPT_exact, _, status, runtime = solve_unrelated_job_scheduling(completion_times, verbose=0)
 
         for epsilon_list, node_selection_strategy, branching_rule in tests_to_do:
@@ -48,7 +47,6 @@ for n_items, n_knapsacks in job_machines_list:
             beb = BranchAndBound(node_selection_strategy, "dantzig_upper_bound", branching_rule, "martello_toth_rule", alpha)
             # self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, left_turns, max_depth,  True
             best_solution, X_int, UB, runtime, nodes_explored, opt_node, left_turns, max_depth, terminate = beb.solve(profits.copy(), weights.copy(), capacities.copy(), opt=OPT_exact, verbose=0)
-
 
             print(OPT_exact, best_solution)
             assert  round(best_solution) <= round(OPT_exact)

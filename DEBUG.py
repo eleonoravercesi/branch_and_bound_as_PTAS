@@ -4,15 +4,13 @@ from math import ceil
 from exact_models.multi_knapsack import SCIP
 
 items_knapsack_list = [(50, 5)]
-#seed_min = 5016165 # 0 is trouble, let's try 5016165
+# seed_min = 5016165 # 0 is trouble, let's try 5016165
 seed_min = 0
 seed_max = seed_min
 tests_to_do = [(0.97, "breadth_first", "kolasar_rule")]
 
-
-
 # Set up the things you want to record
-test_problem = "multiknapsack"
+test_problem = "multi-knapsack"
 test_type = "random_instances"
 
 # Create a pandas data frame to store the results
@@ -49,10 +47,9 @@ for n_items, n_knapsacks in items_knapsack_list:
         # Define capacities
         c_min = min(weights)
         w_sum = sum(weights)
-        c_max = ceil(w_sum / n_knapsacks) - c_min # Half of the items can fit in on average
+        c_max = ceil(w_sum / n_knapsacks) - c_min  # Half of the items can fit in on average
 
-
-        capacities = np.random.randint(c_min, c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
+        capacities = np.random.randint(c_min, c_max, (n_knapsacks,)).tolist()  # This is just to ensure feasibility
         print(capacities)
 
         out = SCIP(profits.copy(), weights.copy(), capacities.copy())

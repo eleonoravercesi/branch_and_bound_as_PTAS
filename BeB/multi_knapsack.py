@@ -1,12 +1,11 @@
 from os.path import lexists
-
 from bounds.multi_knapsack import dantzig_upper_bound, dantzig_upper_bound_linear_relaxation
 from utils import is_integer_val, is_integer_sol
 import time
 from heapq import heappush, heappop
 
 
-class Node():
+class Node:
     def __init__(self, X_frac, UB, depth, strategy, fixed, capacities):
         self.UB = UB
         self.X_frac = X_frac
@@ -38,7 +37,7 @@ class Node():
         return f"fixed = {self.fixed}"
 
 
-class BranchAndBound():
+class BranchAndBound:
     def __init__(self, node_selection_strategy, upper_bound, branching_rule, rounding_rule, alpha):
         self.GLB = float("-inf")
         self.GUB = float("inf")
@@ -104,6 +103,7 @@ class BranchAndBound():
         """
         if self.rounding_rule_strategy == "martello_toth_rule":
             fractional_items = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
+            fractional_items = list(set(fractional_items))
             candidate_solutions = []
 
             # Candidate solution 1: remove all the fractional items AND the item that are naturally fixed in the path
@@ -188,8 +188,8 @@ class BranchAndBound():
         nodes_explored = 1  # Number of nodes explored
         left_turns = 0
         max_depth = 0
-        nodes_opt = -1 # No optimal solution
-        not_yet_opt = True # Of course it's not optimal...
+        nodes_opt = -1  # No optimal solution
+        not_yet_opt = True  # Of course, it's not optimal...
 
         while queue:
             # Get the next node

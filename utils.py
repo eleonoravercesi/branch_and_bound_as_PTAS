@@ -14,6 +14,7 @@ def is_integer_sol(X, tol=1e-6):
             return False
     return True
 
+
 def is_integer_val(v, tol=1e-6):
     """
     Check if a value is integer

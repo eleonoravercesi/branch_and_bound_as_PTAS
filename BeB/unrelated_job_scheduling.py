@@ -12,7 +12,7 @@ class Node():
 
     def __lt__(self, other):
         """
-        Compare two nodes. We will use a min heapq. The smallest lowerbound is the best node (the "smallest" node)
+        Compare two nodes. We will use a min heapq. The smallest lower bound is the best node (the "smallest" node)
         """
         if self.strategy == "lowest_lower_bound":
             return self.LB <= other.LB
@@ -67,7 +67,7 @@ class BranchAndBound():
         # Save the data
         self.completion_times = completion_times
 
-        self.n_machines = len([completion_times[0]]) # All of the same length
+        self.n_machines = len([completion_times[0]])  # All of the same length
         self.n_jobs = len(completion_times)
 
         self.GLB = float("-inf")

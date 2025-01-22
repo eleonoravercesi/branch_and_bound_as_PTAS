@@ -1,10 +1,7 @@
 from pyscipopt import Model
 
-import main_multi_knapsack
-from DEBUG import n_items
 
-
-def binary_search(completions_times, verbose=False):
+def binary_search(completions_times, initial_makespan, verbose=False):
     pass
 
 
@@ -29,15 +26,14 @@ def linear_relaxation(completions_times, initial_makespan, fixed, verbose=False)
 
     unfixed_jobs = [j for j in range(n_jobs) if j not in [j for j, i in fixed]]
 
-
     # Decision variables
     x = {}
     for j in unfixed_jobs:
         for i in range(n_machines):
-            x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})")
+            x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0)
 
     # Makespan
-    C_max = model.addVar(vtype="C", name="C_max")
+    C_max = model.addVar(vtype="C", name="C_max", lb=0.0)
 
     # Objective function
     model.setObjective(C_max, "minimize")
@@ -50,7 +46,6 @@ def linear_relaxation(completions_times, initial_makespan, fixed, verbose=False)
     for i in range(n_machines):
         model.addCons(sum(x[j, i] * completions_times[j][i] for j in unfixed_jobs) <= C_max - initial_makespan[i])
 
-
     # Optimize the model
     model.optimize()
 
@@ -60,4 +55,4 @@ def linear_relaxation(completions_times, initial_makespan, fixed, verbose=False)
                     range(n_machines) if model.getVal(x[(j, i)]) > 0}
         return solution, model.getVal(), True
     else:
-        return None, None, False # Let's keep it, but it's always feasible
+        return None, None, False  # Let's keep it, but it's always feasible

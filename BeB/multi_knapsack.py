@@ -203,8 +203,7 @@ class BranchAndBound:
             if verbose >= 2:
                 print(f"Exploring node {nodes_explored - 1}")
                 print(f"Node UB: {parent_node.UB}, Node LB: {parent_node.LB}")
-                if verbose >= 2:
-                    print(f"path of the node: {parent_node.fixed}")
+                print(f"path of the node: {parent_node.fixed}")
 
             # If the parent node is integer, we don't create children.
             "Koppány: Can this happen at all, since we never add integer nodes?"
@@ -246,10 +245,10 @@ class BranchAndBound:
                         print("X_frac is empty, all the items are fixed")
                     LB = sum([self.profits[k[0]] for k in new_fixed if k[1] < self.n_knapsacks])
                     if LB > self.GLB:
-                        self.GLB = LB
-                        self.GLB_argmin = {k: 1 for k in new_fixed}
                         if verbose >= 2:
                             print(f"\t!!! Improved global lower bound: {self.GLB} --> {LB} (by integrality)")
+                        self.GLB = LB
+                        self.GLB_argmin = {k: 1 for k in new_fixed}
                     continue
 
                 # If we are here, there are still some free jobs left.
@@ -326,17 +325,15 @@ class BranchAndBound:
                 not_yet_opt = False
 
             # We stop if the stopping criterion holds, or if we explored too many nodes.
-            if (nodes_explored > self.MAX_NODES):
+            if nodes_explored > self.MAX_NODES:
                 if not_yet_opt:
                     nodes_opt = nodes_explored
                 return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, False # Not terminating because of the number of nodes
-
 
             if not self.stopping_criterion():
                 if not_yet_opt:
                     nodes_opt = nodes_explored
                 return self.GLB, self.GLB_argmin, self.GUB, time.time() - start, nodes_explored, nodes_opt, left_turns, max_depth, True # Terminating because of the stopping criterion
-
 
         """ 
         At this point, the queue is empty. 

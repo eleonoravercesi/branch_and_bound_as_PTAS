@@ -2,18 +2,18 @@ from ortools.linear_solver import pywraplp
 from pyscipopt import Model, SCIP_PARAMSETTING
 
 
-def solve_unrelated_job_scheduling(completion_times, verbose=False):
+def solve_unrelated_job_scheduling(processing_times, verbose=False):
     """
         Solves the Unrelated Job Scheduling problem using OR-Tools with SCIP backend.
 
         Parameters:
-            completion_times (list): List of completion times for each job on each machine.
+            processing_times (list): List of processing times for each job on each machine.
 
         Returns:
             dict: Solution with assigned jobs and total profit.
         """
-    n_jobs = len(completion_times)  # Number of jobs, indexed with j
-    n_machines = len(completion_times[0])  # Number of machines, indexed with i
+    n_jobs = len(processing_times)  # Number of jobs, indexed with j
+    n_machines = len(processing_times[0])  # Number of machines, indexed with i
 
     # Initialize OR-Tools Solver with SCIP backend
     solver = pywraplp.Solver.CreateSolver('SCIP')
@@ -36,9 +36,9 @@ def solve_unrelated_job_scheduling(completion_times, verbose=False):
     for j in range(n_jobs):
         solver.Add(solver.Sum(x[j, i] for i in range(n_machines)) == 1)
 
-    # Constraint 2: The completion time on each machine must be at most C_max
+    # Constraint 2: The processing time on each machine must be at most C_max
     for i in range(n_machines):
-        solver.Add(solver.Sum(completion_times[j] * x[j, i] for j in range(n_jobs)) <= C_max)
+        solver.Add(solver.Sum(processing_times[j][i] * x[j, i] for j in range(n_jobs)) <= C_max)
 
     # Solve the problem
     status = solver.Solve()
@@ -61,7 +61,7 @@ def solve_unrelated_job_scheduling(completion_times, verbose=False):
         return None, None, status, runtime
 
 
-def SCIP(completion_times, verbose=False):
+def SCIP(processing_times, verbose=False):
     """
     Compute an optimal solution using SCIP B&B with no cutting plane and presolve
     """
@@ -79,8 +79,8 @@ def SCIP(completion_times, verbose=False):
     model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
     model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
 
-    n_machines = len(completion_times[0])
-    n_jobs = len(completion_times)
+    n_machines = len(processing_times[0])
+    n_jobs = len(processing_times)
 
     # Decision variables
     x = {}
@@ -98,9 +98,9 @@ def SCIP(completion_times, verbose=False):
     for j in range(n_jobs):
         model.addCons(sum(x[j, i] for i in range(n_machines)) == 1)
 
-    # Constraint 2. The completion time on each machine must be at most C_max
+    # Constraint 2. The processing time on each machine must be at most C_max
     for i in range(n_machines):
-        model.addCons(sum(x[j, i] * completion_times[j][i] for j in range(n_jobs)) <= C_max)
+        model.addCons(sum(x[j, i] * processing_times[j][i] for j in range(n_jobs)) <= C_max)
 
     # Optimize the model
     model.optimize()

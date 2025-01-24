@@ -3,74 +3,85 @@ import math
 from utils import is_integer_val
 
 
-def binary_search(processing_times, initial_makespan, fixed, verbose=False):
+def binary_search(processing_times, overhead, fixed, verbose=False):
     """
         Parameters
         ----------
         processing_times : list
             List of lists of processing times for each job on each machine.
             p[j][i] is the processing time of job j on machine i.
-        initial_makespan : list
+        overhead : list
             List with all the initial makespan, one for each machine
         fixed : list
             List of tuples with the fixed items, (j, i) --> item j is fixed on machine i
     """
-    model = Model("Unrelated Job Scheduling")
-
-    if not verbose:
-        model.hideOutput()
 
     n_jobs = len(processing_times)
     n_machines = len(processing_times[0])
     unfixed_jobs = [j for j in range(n_jobs) if j not in [j for j, i in fixed]]
 
-    # Now we imitate the binary search.
-    # The value is simply the upper integer part of the linear relaxation
-    _, bin_search_lb, _ = linear_relaxation(processing_times, initial_makespan, fixed, False)
-    bin_search_lb = math.ceil(bin_search_lb)
+    """
+    Now we do the binary search. The possible makespans are in the interval (left,right].
+    In other words, "left" is never feasible, "right" is always feasible.
+    We can initialize "left" as the largest minimal processing time - 1 (it can never be a makespan),
+    and "right" as the best of the assignments where each job is allocated to the same machine (it's always feasible)
+    """
+    left = max(min(processing_times[j][i] + overhead[i] for i in range(n_machines)) for j in unfixed_jobs) - 1
 
-    "Now we find a solution with this makespan"
-    # Decision variables
-    x = {}
-    for j in unfixed_jobs:
+    best_ind = min([i for i in range(n_machines)], key=lambda t: sum(processing_times[j][t] for j in unfixed_jobs) + overhead[t])
+    right = sum(processing_times[j][best_ind] for j in unfixed_jobs) + overhead[best_ind]
+    solution = {(j, best_ind): 1 for j in unfixed_jobs}
+
+    while right - left > 1:
+        middle = (left + right) // 2
+        model = Model("Unrelated Job Scheduling")
+        if not verbose:
+            model.hideOutput()
+
+        # Decision variables
+        x = {}
+        for j in unfixed_jobs:
+            for i in range(n_machines):
+                if processing_times[j][i] <= middle:
+                    x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0)
+                else:
+                    x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0, ub=0.0)
+
+        # Constraint 1. You have to allocate each job
+        for j in unfixed_jobs:
+            model.addCons(sum(x[j, i] for i in range(n_machines)) == 1)
+
+        # Constraint 2. The completion time on each machine must be at most C_max
         for i in range(n_machines):
-            if processing_times[j][i] <= bin_search_lb:
-                x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0)
-            else:
-                x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0, ub=0.0)
+            model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= middle - overhead[i])
 
-    # Constraint 1. You have to allocate each job
-    for j in unfixed_jobs:
-        model.addCons(sum(x[j, i] for i in range(n_machines)) == 1)
+        # Set the solver method to simplex (for having a feas. sol. that's a vertex)
+        model.setParam("lp/resolvealgorithm", 'p')
 
-    # Constraint 2. The completion time on each machine must be at most C_max
-    for i in range(n_machines):
-        model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= bin_search_lb-initial_makespan[i])
+        # Optimize the model
+        model.optimize()
 
-    # Set the solver method to simplex (for having a feas. sol. that's a vertex)
-    model.setParam("lp/resolvealgorithm", 'p')
+        # Extract the solution
+        if model.getStatus() == "optimal":
+            solution = {(j, i): model.getVal(x[(j, i)]) for j in unfixed_jobs for i in
+                        range(n_machines) if model.getVal(x[(j, i)]) > 0}
+            assert len(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]))) <= n_machines, "Too many fractional jobs"
+            right = middle
+        else:
+            left = middle
 
-    # Optimize the model
-    model.optimize()
-
-    # Extract the solution
-    if model.getStatus() == "optimal":
-        solution = {(j, i): model.getVal(x[(j, i)]) for j in unfixed_jobs for i in
-                    range(n_machines) if model.getVal(x[(j, i)]) > 0}
-        assert len([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]) <= n_machines, "Too many fractional jobs"
-        return solution, bin_search_lb, True
-    else:
-        return None, None, False  # Let's keep it, but it's always feasible
+    # The optimal makespan is always "right" at the last iteration
+    return solution, right, True
 
 
-def linear_relaxation(processing_times, initial_makespan, fixed, verbose=False):
+def linear_relaxation(processing_times, overhead, fixed, verbose=False):
     """
     Parameters
     ----------
     processing_times : list
         List of lists completion times for each job on each machine.
         p[j][i] is the completion time of job j on machine i.
-    initial_makespan : list
+    overhead : list
         List with all the initial makespan, one for each machine
     fixed : list
         List of tuples with the fixed items, (j, i) --> item j is fixed on machine i
@@ -103,7 +114,7 @@ def linear_relaxation(processing_times, initial_makespan, fixed, verbose=False):
 
     # Constraint 2. The completion time on each machine must be at most C_max
     for i in range(n_machines):
-        model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= C_max - initial_makespan[i])
+        model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= C_max - overhead[i])
 
     # Set the solver method to simplex (for having a feas. sol. that's a vertex)
     model.setParam("lp/resolvealgorithm", 'p')

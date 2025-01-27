@@ -47,14 +47,14 @@ test_type = "random_instances"
 #             print(OPT_exact, best_solution)
 #             # assert round(best_solution) <= round(OPT_exact), "Our solution cannot be better than the optimal"
 #
-#             # Logging
+#         # Logging
 #         print(f"Done with seed {seed}", flush=True)
 #
 
 n_jobs, n_machines = 5, 2
 seed = 0
 processing_times = [[45, 48], [65, 68], [68, 10], [84, 22], [37, 88]]
-beb = BranchAndBound("depth_first", "bin_search", "max_min_proc", "best_matching", 0.01)
+beb = BranchAndBound("lowest_lower_bound", "bin_search", "max_min_proc", "best_matching", 0.01)
 OPT_exact, _, status, runtime = solve_unrelated_job_scheduling(processing_times, verbose=2)
 best_solution, X_int, LB, runtime, nodes_explored, nodes_opt, max_depth, terminate = (
     beb.solve(processing_times, verbose=2, opt=OPT_exact))

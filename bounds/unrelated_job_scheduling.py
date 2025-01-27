@@ -1,5 +1,4 @@
-from pyscipopt import Model
-import math
+from pyscipopt import Model, SCIP_PARAMSETTING
 from utils import is_integer_val
 
 
@@ -24,13 +23,15 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
     Now we do the binary search. The possible makespans are in the interval (left,right].
     In other words, "left" is never feasible, "right" is always feasible.
     We can initialize "left" as the largest minimal processing time - 1 (it can never be a makespan),
-    and "right" as the best of the assignments where each job is allocated to the same machine (it's always feasible)
+    and "right" as the assignment where each job is allocated to the machine with smallest overhead (it's always feasible)
     """
     left = max(min(processing_times[j][i] + overhead[i] for i in range(n_machines)) for j in unfixed_jobs) - 1
 
-    best_ind = min([i for i in range(n_machines)], key=lambda t: sum(processing_times[j][t] for j in unfixed_jobs) + overhead[t])
-    right = sum(processing_times[j][best_ind] for j in unfixed_jobs) + overhead[best_ind]
-    solution = {(j, best_ind): 1 for j in unfixed_jobs}
+    shortest_machine = min([i for i in range(n_machines)], key=lambda t: overhead[t])
+    temp_completion_times = overhead.copy()
+    temp_completion_times[shortest_machine] += sum(processing_times[j][shortest_machine] for j in unfixed_jobs)
+    right = max(temp_completion_times)
+    solution = {(j, shortest_machine): 1 for j in unfixed_jobs}
 
     while right - left > 1:
         middle = (left + right) // 2
@@ -55,8 +56,15 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
         for i in range(n_machines):
             model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= middle - overhead[i])
 
-        # Set the solver method to simplex (for having a feas. sol. that's a vertex)
+        # Configure simple Branch-and-Bound
+        model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
+        model.setIntParam("separating/maxrounds", 0)  # Disable cutting planes
+        model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
+        model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
+        model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
         model.setParam("lp/resolvealgorithm", 'p')
+
+        # model.setObjective(sum(x[0, i] for i in range(n_machines)), "minimize")
 
         # Optimize the model
         model.optimize()

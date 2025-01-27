@@ -54,7 +54,7 @@ for n_jobs, n_machines in job_machines_list:
                 beb.solve(processing_times, verbose=0, opt=OPT_exact))
 
             print(OPT_exact, best_solution)
-            assert round(best_solution) <= round(OPT_exact), "Our solution cannot be better than the optimal"
+            assert round(best_solution) >= round(OPT_exact), "Our solution cannot be better than the optimal"
 
             # df = df._append(dict(seed=seed, n_machines=n_machines, n_jobs=n_jobs, epsilon=epsilon,
             #                      branching_rule=branching_rule, node_selection=node_selection_strategy,

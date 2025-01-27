@@ -135,7 +135,7 @@ def linear_relaxation(processing_times, overhead, fixed, verbose=False):
         solution = {(j, i): model.getVal(x[(j, i)]) for j in unfixed_jobs for i in
                     range(n_machines) if model.getVal(x[(j, i)]) > 0}
         makespan = model.getObjVal()
-        assert len([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]) <= n_machines, "Too many fractional jobs"
+        assert len(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])])) <= n_machines, "Too many fractional jobs"
         return solution, makespan, True
     else:
         return None, None, False  # Let's keep it, but it's always feasible

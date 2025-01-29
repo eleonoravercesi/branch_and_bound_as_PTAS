@@ -24,7 +24,7 @@ test_problem = "unrelated_job_scheduling"
 test_type = "random_instances"
 
 # Create a pandas data frame to store the results
-df = pd.DataFrame(columns=["seed", "n_machines", "n_jobs", "epsilon", "branching_rule", "node_selection", "rounding_rule",
+df = pd.DataFrame(columns=["seed", "n_machines", "n_jobs", "epsilon", "branching_rule", "node_selection", "rounding_rule", "lower_bound",
                            "best_solution", "runtime", "depth", "nodes_explored", "terminate",
                            "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"])
 
@@ -54,12 +54,14 @@ for n_jobs, n_machines in job_machines_list:
             assert round(best_solution) >= round(OPT_exact), "Our solution cannot be better than the optimal"
 
             # Write the results on the data frame
+            # "seed", "n_machines", "n_jobs", "epsilon", "branching_rule", "node_selection", "rounding_rule", "lower_bound",
+            #                            "best_solution", "runtime", "depth", "nodes_explored", "terminate",
+            #                            "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"
             df = df._append({"seed": seed, "n_jobs": n_jobs, "n_machines": n_machines, "epsilon": epsilon,
-                            "branching_rule": branching_rule, "node_selection": node_selection_strategy, "rounding_rule": rounding_rule,
-                            "best_solution": best_solution, "runtime": runtime, "depth": max_depth,
-                            "nodes_explored": nodes_explored, "terminate": terminate,
-                            "number_of_nodes_for_optimality": nodes_opt, "optimal_solution": OPT_exact,
-                            "opt_gap": opt_gap(best_solution, OPT_exact)}, ignore_index=True)
+            "branching_rule": branching_rule, "node_selection": node_selection_strategy, "rounding_rule": rounding_rule, "lower_bound": lower_bound,
+            "best_solution": best_solution, "runtime": runtime, "depth": max_depth, "nodes_explored": nodes_explored, "terminate": terminate,
+            "number_of_nodes_for_optimality": nodes_opt, "optimal_solution": OPT_exact, "opt_gap": opt_gap(best_solution, OPT_exact)},
+                ignore_index=True)
 
         # Logging
         print(f"Done with seed {seed}", flush=True)

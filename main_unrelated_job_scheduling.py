@@ -4,7 +4,7 @@ import numpy as np
 from exact_models.unrelated_job_scheduling import solve_unrelated_job_scheduling
 from BeB.unrelated_job_scheduling import BranchAndBound
 
-job_machines_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10)]
+job_machines_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
 node_selection_strategy_list = ["lowest_lower_bound", "depth_first", "breadth_first"]
 lower_bound_list = ["lin_relax", "bin_search"]
@@ -25,7 +25,7 @@ test_type = "random_instances"
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["seed", "n_machines", "n_jobs", "epsilon", "branching_rule", "node_selection", "rounding_rule", "lower_bound",
-                           "best_solution", "runtime", "depth", "nodes_explored", "terminate",
+                           "best_solution", "best_bound", "runtime", "depth", "nodes_explored", "terminate",
                            "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"])
 
 
@@ -53,13 +53,9 @@ for n_jobs, n_machines in job_machines_list:
             print(OPT_exact, best_solution)
             assert round(best_solution) >= round(OPT_exact), "Our solution cannot be better than the optimal"
 
-            # Write the results on the data frame
-            # "seed", "n_machines", "n_jobs", "epsilon", "branching_rule", "node_selection", "rounding_rule", "lower_bound",
-            #                            "best_solution", "runtime", "depth", "nodes_explored", "terminate",
-            #                            "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"
             df = df._append({"seed": seed, "n_jobs": n_jobs, "n_machines": n_machines, "epsilon": epsilon,
             "branching_rule": branching_rule, "node_selection": node_selection_strategy, "rounding_rule": rounding_rule, "lower_bound": lower_bound,
-            "best_solution": best_solution, "runtime": runtime, "depth": max_depth, "nodes_explored": nodes_explored, "terminate": terminate,
+            "best_solution": best_solution, "best_bound": LB, "runtime": runtime, "depth": max_depth, "nodes_explored": nodes_explored, "terminate": terminate,
             "number_of_nodes_for_optimality": nodes_opt, "optimal_solution": OPT_exact, "opt_gap": opt_gap(best_solution, OPT_exact)},
                 ignore_index=True)
 

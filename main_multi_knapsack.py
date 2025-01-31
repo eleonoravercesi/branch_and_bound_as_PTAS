@@ -5,7 +5,7 @@ from itertools import product
 from math import ceil
 import pandas as pd
 
-items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 20), (100, 2), (100, 5), (100, 10)]
+items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
 alpha_list = [0.5, 0.8, 0.95, 0.97]
 node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
@@ -33,7 +33,7 @@ test_type = "random_instances"
 
 # Create a pandas data frame to store the results
 df = pd.DataFrame(columns=["seed", "n_knapsacks", "n_items", "alpha", "branching_rule", "node_selection",
-                           "best_solution", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"])
+                           "best_solution", "best_bound", "runtime", "depth", "number_of_left_turns", "nodes_explored", "terminate", "number_of_nodes_for_optimality", "optimal_solution", "opt_gap"])
 
 def opt_gap(best_solution, OPT_exact, tol = 1e-6):
     return abs(best_solution - OPT_exact) / max(tol, OPT_exact, best_solution)
@@ -91,7 +91,7 @@ for n_items, n_knapsacks in items_knapsack_list:
             print(f"Done with seed {seed}", flush=True)
 
             df = df._append(dict(seed=seed, n_knapsacks=n_knapsacks, n_items=n_items, alpha=alpha, branching_rule=branching_rule,
-                                 node_selection=node_selection_strategy, best_solution=best_solution, runtime=runtime,
+                                 node_selection=node_selection_strategy, best_solution=best_solution, best_bound=UB, runtime=runtime,
                                  depth=max_depth, number_of_left_turns=left_turns, nodes_explored=nodes_explored, terminate=terminate, number_of_nodes_for_optimality=opt_node,
                                  optimal_solution=OPT_exact, opt_gap = opt_gap(best_solution, OPT_exact)), ignore_index=True)
 

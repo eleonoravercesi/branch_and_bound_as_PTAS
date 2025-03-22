@@ -33,7 +33,7 @@ def opt_gap(best_solution, OPT_exact, tol=1e-6):
     return abs(best_solution - OPT_exact) / max(tol, OPT_exact, best_solution)
 
 
-for n_jobs, n_machines in job_machines_list:
+for n_jobs, n_machines in job_machines_list[4:]:
     print(f"Starting with {n_jobs} - {n_machines}", flush=True)
     for seed in range(seed_min, seed_max + 1):
         # Set the seed
@@ -61,4 +61,7 @@ for n_jobs, n_machines in job_machines_list:
 
         # Logging
         print(f"Done with seed {seed}", flush=True)
-        df.to_csv(f"./output/results_{test_problem}_{test_type}.csv", index=False)
+
+        # Save the results
+        if seed % 5 == 0:
+            df.to_csv(f"./output/results_{test_problem}_{test_type}.csv", index=False)

@@ -39,7 +39,7 @@ def opt_gap(best_solution, OPT_exact, tol = 1e-6):
     return abs(best_solution - OPT_exact) / max(tol, OPT_exact, best_solution)
 
 
-for n_items, n_knapsacks in items_knapsack_list:
+for n_items, n_knapsacks in items_knapsack_list[10:]:
     print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
     for seed in range(seed_min, seed_max + 1):
         # Set the seed
@@ -95,4 +95,6 @@ for n_items, n_knapsacks in items_knapsack_list:
                                  depth=max_depth, number_of_left_turns=left_turns, nodes_explored=nodes_explored, terminate=terminate, number_of_nodes_for_optimality=opt_node,
                                  optimal_solution=OPT_exact, opt_gap = opt_gap(best_solution, OPT_exact)), ignore_index=True)
 
+        if seed + 1 % 5 == 0:
+            # Save it every 5 seeds
             df.to_csv(f"./output/results_{test_problem}_{test_type}.csv", index=False)

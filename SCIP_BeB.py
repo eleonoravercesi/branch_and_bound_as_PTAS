@@ -1,21 +1,29 @@
 "Test the SCIP solver on the multi-knapsack and Unrelated Job Scheduling problems."
-
+import sys
 import numpy as np
 from math import ceil
 from tqdm import tqdm
 
-# Choose wich test to run
-test = "unrelated_job_scheduling"
+from main_multi_knapsack import seed_min
 
-seed_min = 0
-seed_max = 29
+# Pars arguments from command line
+test = sys.argv[0]
+assert test in ["multi_knapsack", "unrelated_job_scheduling"], "Invalid test, must be either multi_knapsack or unrelated_job_scheduling"
+
+# Define the seed range
+seed_min = int(sys.argv[1])
+seed_max = int(sys.argv[2])
+
+# Collect the runtimes
 times = []
+
 
 if test == "multi_knapsack":
     from exact_models.multi_knapsack import SCIP
 
-    n_items = 100
-    n_knapsacks = 15
+    n_items = int(sys.argv[3])
+    n_knapsacks = int(sys.argv[4])
+
     for seed in tqdm(range(seed_min, seed_max + 1)):
         # Set the seed
         np.random.seed(seed)
@@ -46,6 +54,7 @@ if test == "multi_knapsack":
 
         capacities = np.random.randint(c_min, c_max, (n_knapsacks,)).tolist() # This is just to ensure feasibility
 
+        # Change the nodes limit to None if you want to solve the problem to optimality
         OPT_exact, _, status, runtime = SCIP(profits.copy(), weights.copy(), capacities.copy(), node_limit=10**4, verbose=False)
 
         times.append(runtime)
@@ -54,8 +63,8 @@ if test == "multi_knapsack":
 elif test == "unrelated_job_scheduling":
     from exact_models.unrelated_job_scheduling import SCIP
 
-    n_jobs = 50
-    n_machines = 10
+    n_jobs = int(sys.argv[3])
+    n_machines = int(sys.argv[4])
 
     for seed in tqdm(range(seed_min, seed_max + 1)):
         # Set the seed
@@ -64,6 +73,7 @@ elif test == "unrelated_job_scheduling":
         # Define the completion times
         processing_times = np.random.randint(1, 100, (n_jobs, n_machines)).tolist()
 
+        # Change the nodes limit to None if you want to solve the problem to optimality
         OPT_exact, _, status, runtime = SCIP(processing_times, nodes_limit=10**4, verbose=False)
 
         times.append(runtime)

@@ -1,10 +1,11 @@
-import  numpy as np
 from exact_models.multi_knapsack import solve_multi_knapsack
 from BeB.multi_knapsack import BranchAndBound
 from itertools import product
 from math import ceil
+import numpy as np
 import pandas as pd
 
+# Modify this to test different instances
 items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
 alpha_list = [0.5, 0.8, 0.95, 0.97]

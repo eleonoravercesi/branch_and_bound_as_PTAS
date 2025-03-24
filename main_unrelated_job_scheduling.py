@@ -4,6 +4,7 @@ import numpy as np
 from exact_models.unrelated_job_scheduling import solve_unrelated_job_scheduling
 from BeB.unrelated_job_scheduling import BranchAndBound
 
+# Modify this to test different instances
 job_machines_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
 node_selection_strategy_list = ["lowest_lower_bound", "depth_first", "breadth_first"]

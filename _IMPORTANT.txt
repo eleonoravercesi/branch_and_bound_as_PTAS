@@ -1,2 +1,0 @@
-http://soa.iti.es/problem-instances <-- instances downloaded from here, search from Instances for unrelated parallel machines problems and makespan criterion	
-

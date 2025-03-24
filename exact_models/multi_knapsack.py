@@ -59,7 +59,7 @@ def solve_multi_knapsack(profits, weights, capacities, verbose=False):
         print('No optimal solution found.')
         return None, None, status, runtime
 
-def SCIP(profits, weights, capacities):
+def SCIP(profits, weights, capacities, node_limit=None, verbose=True):
     """
     Compute an optimal solution using SCIP B&B with no cutting plane and presolve
     """
@@ -70,6 +70,8 @@ def SCIP(profits, weights, capacities):
 
     # Initialize the model
     model = Model("Knapsack")
+    if not verbose:
+        model.hideOutput()
 
     # Configure simple Branch-and-Bound
     model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
@@ -77,6 +79,10 @@ def SCIP(profits, weights, capacities):
     model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
     model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
     model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
+
+    # Set a node exploration limit
+    if node_limit is not None:
+        model.setParam("limits/nodes", node_limit)
 
     x = dict()
     for j in range(n_items):
@@ -98,10 +104,13 @@ def SCIP(profits, weights, capacities):
     # Optimize the model
     model.optimize()
 
+    # Get the runtime
+    runtime = model.getSolvingTime()
+
     # Extract the solution
     if model.getStatus() == "optimal":
         total_profit = model.getObjVal()
         solution = {(j, i): model.getVal(x[(j, i)]) for j in range(n_items) for i in range(n_knapsacks) if model.getVal(x[(j, i)]) > 0}
-        return solution, total_profit, True
+        return solution, total_profit, True, runtime
     else:
-        return None, None, False
+        return None, None, False, runtime

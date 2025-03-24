@@ -61,7 +61,7 @@ def solve_unrelated_job_scheduling(processing_times, verbose=False):
         return None, None, status, runtime
 
 
-def SCIP(processing_times, verbose=False):
+def SCIP(processing_times, nodes_limit=None, verbose=False):
     """
     Compute an optimal solution using SCIP B&B with no cutting plane and presolve
     """
@@ -78,6 +78,9 @@ def SCIP(processing_times, verbose=False):
     model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
     model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
     model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
+
+    if nodes_limit is not None:
+        model.setParam("limits/nodes", nodes_limit)
 
     n_machines = len(processing_times[0])
     n_jobs = len(processing_times)
@@ -105,10 +108,13 @@ def SCIP(processing_times, verbose=False):
     # Optimize the model
     model.optimize()
 
+    # Get the runtime
+    runtime = model.getSolvingTime()
+
     # Extract the solution
     if model.getStatus() == "optimal":
         solution = {(j, i): model.getVal(x[(j, i)]) for j in range(n_jobs) for i in
                     range(n_machines) if model.getVal(x[(j, i)]) > 0}
-        return solution, model.getVal(), True
+        return solution, model.getObjVal(), True, runtime
     else:
-        return None, None, False  # Let's keep it, but it's always feasible
+        return None, None, False, runtime  # Let's keep it, but it's always feasible

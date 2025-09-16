@@ -2,9 +2,9 @@
 
 ### Koppány István Encz, Monaldo Mastrolilli, and Eleonora Vercesi
 
-This is the accompaning code of the paper "Branch-and-Bound Algorithms as Polynomial-time Approximation Schemes" by Koppány István Encz, Monaldo Mastrolilli, and Eleonora Vercesi.
+This is the accompaning code of the paper "Branch-and-Bound Algorithms as Polynomial-time Approximation Schemes" by Koppány István Encz, Monaldo Mastrolilli, and Eleonora Vercesi accepted at ICALP 2025.
 
-You can find the paper also in this repository, named as `main.pdf`
+You can find an extended version of the paper also in this repository, named as `main.pdf`
 
 ## How this repository is structured
 The structure of this repository is as follows:

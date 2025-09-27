@@ -1,0 +1,4 @@
+.idea/
+*.csv
+algo.md
+__pycache__

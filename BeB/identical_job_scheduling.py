@@ -1,4 +1,4 @@
-from bounds.unrelated_job_scheduling import binary_search, linear_relaxation
+from bounds.identical_job_scheduling import binary_search, linear_relaxation
 from utils import is_integer_val, is_integer_sol
 import itertools as it
 import time
@@ -59,24 +59,23 @@ class BranchAndBound:
         self.TOL = None
         self.MAX_NODES = None
 
-    def lower_bound(self, processing_times, overhead, fixed):
+    def lower_bound(self, overhead, fixed):
         """Compute the lower bound for the problem with the specified parameters"""
         # Returns (X_frac, value, solvable)
-        if self.lower_bound_strategy == "lin_relax":
-            return linear_relaxation(processing_times, overhead, fixed)
+        # if self.lower_bound_strategy == "lin_relax":
+        #     return linear_relaxation(n_jobs, n_machines, processing_times, overhead, fixed)
         if self.lower_bound_strategy == "bin_search":
-            return binary_search(processing_times, overhead, fixed)
+            return binary_search(self.n_jobs, self.n_machines, self.processing_times, overhead, fixed)
 
     def branching_variable(self, X_frac):
         fractional_jobs = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_jobs = list(set(fractional_jobs))
         assert len(
             fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
-        if self.branching_rule == "max_min_proc":
-            return max(fractional_jobs, key=lambda j: min(self.processing_times[j][i] for i in range(self.n_machines)))
-        if self.branching_rule == "max_avg_proc":
-            return max(fractional_jobs, key=lambda j:
-            sum(self.processing_times[j][i] for i in range(self.n_machines)) / self.n_machines)
+        if self.branching_rule == "max_proc":
+            return max(fractional_jobs, key=lambda j: self.processing_times[j])
+        else:
+            raise Exception("Branching rule not implemented")
 
     def rounding(self, X_frac, fixed):
         # Returns (X_int, makespan) with in the form of a dict: X[(j,i)] = 1 if job j is assigned to machine i.
@@ -95,20 +94,20 @@ class BranchAndBound:
         # Completion time of integrally assigned jobs.
         for (j, i) in X_int.keys():
             if abs(X_int[(j, i)] - 1) < self.TOL:  # <==> X_int[(j,i)] == 1
-                completion_times[i] += self.processing_times[j][i]
+                completion_times[i] += self.processing_times[j]
 
         # Completion time of fixed jobs.
         for (j, i) in fixed:
-            completion_times[i] += self.processing_times[j][i]
+            completion_times[i] += self.processing_times[j]
 
-        if self.rounding_rule == "all_to_shortest":
-            # Each fractional job is put on the machine where its processing time is minimal.
-            for j in fractional_jobs:
-                i = min([k for k in range(self.n_machines)], key=lambda x: self.processing_times[j][x])
-                X_int[(j, i)] = 1
-                completion_times[i] += self.processing_times[j][i]
+        # if self.rounding_rule == "all_to_shortest":
+        #     # Each fractional job is put on the machine where its processing time is minimal.
+        #     for j in fractional_jobs:
+        #         i = min([k for k in range(self.n_machines)], key=lambda x: self.processing_times[j][x])
+        #         X_int[(j, i)] = 1
+        #         completion_times[i] += self.processing_times[j][i]
 
-            return X_int, max(completion_times)
+        #     return X_int, max(completion_times)
 
         if self.rounding_rule == "best_matching":
             # The at most m fractional jobs are assigned in a matching such that the total makespan is minimal.
@@ -120,7 +119,7 @@ class BranchAndBound:
                 for ind in range(len(fractional_jobs)):
                     j = fractional_jobs[ind]
                     i = p[ind]
-                    temp_comp_times[i] += self.processing_times[j][i]
+                    temp_comp_times[i] += self.processing_times[j]
                 makespan = max(temp_comp_times)
                 if best:
                     if makespan < best[1]:
@@ -140,11 +139,14 @@ class BranchAndBound:
     def stopping_criterion(self):
         return self.LUB / self.LLB < 1 + self.epsilon
 
-    def solve(self, processing_times, verbose=0, opt=None):
+    def solve(self, n_jobs:int, n_machines:int, processing_times: list[int], verbose=0, opt=None):
+        assert n_jobs == len(processing_times), "Number of jobs must match the length of processing_times"
+        assert n_machines > 0, "There must be at least one machine"
+
         # Save the data
         self.processing_times = processing_times
-        self.n_machines = len(processing_times[0])  # All have the same length
-        self.n_jobs = len(processing_times)
+        self.n_machines = n_machines
+        self.n_jobs = n_jobs
 
         self.LLB = float("-inf")
         self.LUB = float("inf")
@@ -152,13 +154,13 @@ class BranchAndBound:
 
         self.verbose = verbose
         self.TOL = 1e-6
-        self.MAX_NODES = 1e4
+        self.MAX_NODES = 10_000
 
         start = time.time()
 
         # Instantiate the root node
         depth = 0
-        X_frac, LB, feas = self.lower_bound(self.processing_times, [0]*self.n_machines, [])
+        X_frac, LB, feas = self.lower_bound([0]*self.n_machines, [])
         self.LLB = LB
 
         # If X_frac is integer, we have an optimal solution and return
@@ -214,7 +216,7 @@ class BranchAndBound:
                 new_overhead = parent_node.overhead.copy()
 
                 # Update the corresponding overhead of the children
-                new_overhead[q] += self.processing_times[j][q]
+                new_overhead[q] += self.processing_times[j]
 
                 # Fix item j on machine q
                 new_fixed = parent_node.fixed + [(j, q)]
@@ -234,7 +236,7 @@ class BranchAndBound:
 
                 # If we are here, there are still some free jobs left.
                 # We round up the fractional optimum, and add back fixed items.
-                X_frac, LB, _ = self.lower_bound(processing_times, new_overhead, new_fixed)
+                X_frac, LB, _ = self.lower_bound(new_overhead, new_fixed)
 
                 # Add the fixed to X_frac
                 for (k, i) in new_fixed:

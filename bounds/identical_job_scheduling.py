@@ -2,21 +2,22 @@ from pyscipopt import Model, SCIP_PARAMSETTING
 from utils import is_integer_val
 
 
-def binary_search(processing_times, overhead, fixed, verbose=False):
+def binary_search(n_jobs: int, n_machines: int, processing_times: list[int], overhead, fixed, verbose=False):
     """
         Parameters
         ----------
+        n_jobs : int
+            Number of jobs to be scheduled.
+        n_machines : int
+            Number of identical machines available.
         processing_times : list
-            List of lists of processing times for each job on each machine.
-            p[j][i] is the processing time of job j on machine i.
+            List of processing times for each job.
         overhead : list
             List with all the initial makespan, one for each machine
         fixed : list
             List of tuples with the fixed items, (j, i) --> item j is fixed on machine i
     """
 
-    n_jobs = len(processing_times)
-    n_machines = len(processing_times[0])
     unfixed_jobs = [j for j in range(n_jobs) if j not in [j for j, i in fixed]]
 
     """
@@ -25,11 +26,11 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
     We can initialize "left" as the largest minimal processing time - 1 (it can never be a makespan),
     and "right" as the assignment where each job is allocated to the machine with smallest overhead (it's always feasible)
     """
-    left = max(min(processing_times[j][i] + overhead[i] for i in range(n_machines)) for j in unfixed_jobs) - 1
+    left = max(min(processing_times[j] + overhead[i] for i in range(n_machines)) for j in unfixed_jobs) - 1
 
     shortest_machine = min([i for i in range(n_machines)], key=lambda t: overhead[t])
     temp_completion_times = overhead.copy()
-    temp_completion_times[shortest_machine] += sum(processing_times[j][shortest_machine] for j in unfixed_jobs)
+    temp_completion_times[shortest_machine] += sum(processing_times[j] for j in unfixed_jobs)
     right = max(temp_completion_times)
     solution = {(j, shortest_machine): 1 for j in unfixed_jobs}
 
@@ -43,7 +44,7 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
         x = {}
         for j in unfixed_jobs:
             for i in range(n_machines):
-                if processing_times[j][i] <= middle:
+                if processing_times[j] <= middle:
                     x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0)
                 else:
                     x[j, i] = model.addVar(vtype="C", name=f"x({i},{j})", lb=0.0, ub=0.0)
@@ -54,7 +55,7 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
 
         # Constraint 2. The completion time on each machine must be at most C_max
         for i in range(n_machines):
-            model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= middle - overhead[i])
+            model.addCons(sum(x[j, i] * processing_times[j] for j in unfixed_jobs) <= middle - overhead[i])
 
         # Configure simple Branch-and-Bound
         model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
@@ -73,7 +74,7 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
         if model.getStatus() == "optimal":
             solution = {(j, i): model.getVal(x[(j, i)]) for j in unfixed_jobs for i in
                         range(n_machines) if model.getVal(x[(j, i)]) > 0}
-            assert len(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]))) <= n_machines, "Too many fractional jobs"
+            assert len(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]))) <= n_machines, "Too many fractional jobs="+str(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])])))+" n_machines="+str(n_machines)
             right = middle
         else:
             left = middle

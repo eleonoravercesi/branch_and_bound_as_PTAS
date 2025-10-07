@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 # Modify this to test different instances
-items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
+#items_knapsack_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
+items_knapsack_list = [(5, 2), (100, 15)]
 
 alpha_list = [0.5, 0.8, 0.95, 0.97]
 node_selection_strategy_list = ["greatest_upper_bound", "depth_first", "breadth_first"]
@@ -17,15 +18,6 @@ tests_to_do = list(tests_to_do)
 
 seed_min = 0
 seed_max = 29
-
-'''
-Single test
-'''
-# items_knapsack_list = [(50, 5)]
-# seed_min = 0
-# seed_max = seed_min
-# tests_to_do = [(0.97, "breadth_first", "kolasar_rule")]
-
 
 
 # Set up the things you want to record
@@ -40,7 +32,7 @@ def opt_gap(best_solution, OPT_exact, tol = 1e-6):
     return abs(best_solution - OPT_exact) / max(tol, OPT_exact, best_solution)
 
 
-for n_items, n_knapsacks in items_knapsack_list[10:]:
+for n_items, n_knapsacks in items_knapsack_list:
     print(f"Starting with {n_items} - {n_knapsacks}", flush=True)
     for seed in range(seed_min, seed_max + 1):
         # Set the seed

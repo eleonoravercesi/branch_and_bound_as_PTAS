@@ -1,2 +1,2 @@
-ortools
-pyscipopt
+ortools==9.11.4210
+pyscipopt==5.1.1

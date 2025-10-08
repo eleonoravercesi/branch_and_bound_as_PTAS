@@ -36,8 +36,21 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
     while right - left > 1:
         middle = (left + right) // 2
         model = Model("Unrelated Job Scheduling")
+        model.setParam("lp/resolvealgorithm", 'p')
+        model.setParam('lp/initalgorithm', 'p')  # Use primal simplex for the initial LP
+        model.setParam('lp/resolvealgorithm', 'p')  # Use primal simplex for re-solves
+
+        # Configure simple Branch-and-Bound
+        model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
+        model.setIntParam("separating/maxrounds", 0)  # Disable cutting planes
+        model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
+        model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
+        model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
+
         if not verbose:
             model.hideOutput()
+        else:
+            model.setParam('display/verblevel', 5)
 
         # Decision variables
         x = {}
@@ -56,15 +69,7 @@ def binary_search(processing_times, overhead, fixed, verbose=False):
         for i in range(n_machines):
             model.addCons(sum(x[j, i] * processing_times[j][i] for j in unfixed_jobs) <= middle - overhead[i])
 
-        # Configure simple Branch-and-Bound
-        model.setIntParam("presolving/maxrounds", 0)  # Disable presolve
-        model.setIntParam("separating/maxrounds", 0)  # Disable cutting planes
-        model.setHeuristics(SCIP_PARAMSETTING.OFF)  # Disable heuristics
-        model.setIntParam("presolving/maxrestarts", 0)  # Disable restarts
-        model.setIntParam("propagating/maxrounds", 0)  # Disable propagation
-        model.setParam("lp/resolvealgorithm", 'p')
-
-        # model.setObjective(sum(x[0, i] for i in range(n_machines)), "minimize")
+        model.setObjective(x[unfixed_jobs[0], 0], "minimize")
 
         # Optimize the model
         model.optimize()

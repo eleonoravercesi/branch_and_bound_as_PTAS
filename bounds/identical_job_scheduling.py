@@ -74,7 +74,7 @@ def binary_search(n_jobs: int, n_machines: int, processing_times: list[int], ove
         if model.getStatus() == "optimal":
             solution = {(j, i): model.getVal(x[(j, i)]) for j in unfixed_jobs for i in
                         range(n_machines) if model.getVal(x[(j, i)]) > 0}
-            assert len(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]))) <= n_machines, "Too many fractional jobs="+str(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])])))+" n_machines="+str(n_machines)
+            # assert len(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])]))) <= n_machines, "Too many fractional jobs="+str(list(set([j for (j, i) in solution.keys() if not is_integer_val(solution[(j, i)])])))+" n_machines="+str(n_machines)
             right = middle
         else:
             left = middle

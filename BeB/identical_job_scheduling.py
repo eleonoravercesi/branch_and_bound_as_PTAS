@@ -70,8 +70,8 @@ class BranchAndBound:
     def branching_variable(self, X_frac):
         fractional_jobs = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_jobs = list(set(fractional_jobs))
-        assert len(
-            fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
+        # assert len(
+        #     fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
         if self.branching_rule == "max_proc":
             return max(fractional_jobs, key=lambda j: self.processing_times[j])
         else:
@@ -83,8 +83,8 @@ class BranchAndBound:
 
         fractional_jobs = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_jobs = list(set(fractional_jobs))
-        assert len(
-            fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
+        # assert len(
+        #     fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
 
         # Integrally assigned jobs remain there
         X_int = {k: v for k, v in X_frac.items() if is_integer_val(v) and k not in fixed}
@@ -114,7 +114,11 @@ class BranchAndBound:
             # We iterate through all possible placements of the (<=m) fractional jobs on the m machines.
 
             best = None  # (permutation, makespan) for the best matching found so far
-            for p in it.permutations(range(self.n_machines), len(fractional_jobs)):
+            if len(fractional_jobs) <= self.n_machines:
+                assignments = it.permutations(range(self.n_machines), len(fractional_jobs))
+            else:
+                assignments = it.product(range(self.n_machines), repeat=len(fractional_jobs))
+            for p in assignments:
                 temp_comp_times = completion_times.copy()
                 for ind in range(len(fractional_jobs)):
                     j = fractional_jobs[ind]

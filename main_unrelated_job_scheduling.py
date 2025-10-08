@@ -5,20 +5,20 @@ from exact_models.unrelated_job_scheduling import solve_unrelated_job_scheduling
 from BeB.unrelated_job_scheduling import BranchAndBound
 
 # Modify this to test different instances
-job_machines_list = [(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
+job_machines_list = [(50,10)] #, (50,5)] #[(5, 2), (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
-node_selection_strategy_list = ["lowest_lower_bound", "depth_first", "breadth_first"]
-lower_bound_list = ["lin_relax", "bin_search"]
+node_selection_strategy_list = ["lowest_lower_bound"] #, "depth_first", "breadth_first"]
+lower_bound_list = ["bin_search"] #["lin_relax", "bin_search"]
 branching_rule_list = ["max_min_proc"]
-rounding_rule_list = ["best_matching", "all_to_shortest"]
-epsilon_list = [0.5, 0.1, 0.05, 0.01]
+rounding_rule_list = ["best_matching"] #, "all_to_shortest"]
+epsilon_list = [0.01] #, 0.1, 0.05, 0.01]
 
 tests_to_do = product(epsilon_list, node_selection_strategy_list, lower_bound_list,
                       branching_rule_list, rounding_rule_list)
 tests_to_do = list(tests_to_do)
 
 seed_min = 0
-seed_max = 29
+seed_max = 2
 
 # Set up the things you want to record
 test_problem = "unrelated_job_scheduling"
@@ -34,7 +34,7 @@ def opt_gap(best_solution, OPT_exact, tol=1e-6):
     return abs(best_solution - OPT_exact) / max(tol, OPT_exact, best_solution)
 
 
-for n_jobs, n_machines in job_machines_list[4:]:
+for n_jobs, n_machines in job_machines_list:
     print(f"Starting with {n_jobs} - {n_machines}", flush=True)
     for seed in range(seed_min, seed_max + 1):
         # Set the seed

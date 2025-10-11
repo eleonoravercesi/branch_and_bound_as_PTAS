@@ -1,4 +1,4 @@
-from bounds.identical_job_scheduling import binary_search, linear_relaxation
+from bounds.identical_job_scheduling import binary_search, linear_relaxation, solve_greedy
 from utils import is_integer_val, is_integer_sol
 import itertools as it
 import time
@@ -62,6 +62,8 @@ class BranchAndBound:
     def lower_bound(self, overhead, fixed):
         """Compute the lower bound for the problem with the specified parameters"""
         # Returns (X_frac, value, solvable)
+        if self.lower_bound_strategy == "greedy":
+            return solve_greedy(self.n_jobs, self.n_machines, self.processing_times, overhead, fixed)
         # if self.lower_bound_strategy == "lin_relax":
         #     return linear_relaxation(n_jobs, n_machines, processing_times, overhead, fixed)
         if self.lower_bound_strategy == "bin_search":
@@ -70,8 +72,8 @@ class BranchAndBound:
     def branching_variable(self, X_frac):
         fractional_jobs = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_jobs = list(set(fractional_jobs))
-        # assert len(
-        #     fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
+        assert len(
+            fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
         if self.branching_rule == "max_proc":
             return max(fractional_jobs, key=lambda j: self.processing_times[j])
         else:
@@ -83,8 +85,7 @@ class BranchAndBound:
 
         fractional_jobs = [j for (j, i) in X_frac.keys() if not is_integer_val(X_frac[(j, i)])]
         fractional_jobs = list(set(fractional_jobs))
-        # assert len(
-        #     fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
+        assert len(fractional_jobs) <= self.n_machines, "The number of fractional jobs is greater than the number of machines"
 
         # Integrally assigned jobs remain there
         X_int = {k: v for k, v in X_frac.items() if is_integer_val(v) and k not in fixed}

@@ -5,10 +5,10 @@ from exact_models.identical_job_scheduling import solve_identical_job_scheduling
 from BeB.identical_job_scheduling import BranchAndBound
 
 # Modify this to test different instances
-job_machines_list = [(20, 5)] #, (10, 2), (10, 5), (50, 2), (50, 5), (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
+job_machines_list = [(5, 2), (10, 2), (10, 5), (20, 5), (50, 2), (50, 5)] #, (50, 10), (50, 15), (100, 2), (100, 5), (100, 10), (100, 15)]
 
 node_selection_strategy_list = ["lowest_lower_bound"] #, "depth_first", "breadth_first"]
-lower_bound_list = ["bin_search"]
+lower_bound_list = ["greedy"]
 branching_rule_list = ["max_proc"]
 rounding_rule_list = ["best_matching"]
 epsilon_list = [0.01] #, 0.1, 0.05, 0.01]
